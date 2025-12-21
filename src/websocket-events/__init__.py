@@ -16,10 +16,26 @@ async def home(request):
 
 
 @routes.get("/{db}")
-async def hello(request):
+async def db(request):
     key: str = request.match_info["db"].encode("utf8")
     all: dict[str, str] = await redis.hgetall(key)
     return web.json_response(all)
+
+
+@routes.put("/{db}")
+async def db_put(request):
+    key: str = request.match_info["db"].encode("utf8")
+    values: dict = await request.json()
+    print(values)
+    async with redis.pipeline(transaction=True) as pipe:
+        for k, v in values.items():
+            if v is None:
+                await pipe.hdel(key, k)
+            else:
+                await pipe.hset(key, k, json.dumps(v))
+        await pipe.publish(key, await request.text())
+        await pipe.execute()
+    return web.Response()
 
 
 @routes.get("/sub/{db}")
