@@ -69,7 +69,7 @@ async def websocket_handler(request):
     await pubsub.subscribe(key)
 
     async def sub():
-        for response in pubsub.listen():
+        async for response in pubsub.listen():
             message: dict = await pubsub.handle_message(response)
             print(message)
             await ws.send_json(message)
@@ -81,12 +81,12 @@ async def websocket_handler(request):
             if msg.data == "close":
                 await ws.close()
             else:
-                await ws.send_str(msg.data + "/answer")
+                await crud.put_dict(key, json.loads(msg.data))
         elif msg.type == aiohttp.WSMsgType.ERROR:
             print("ws connection closed with exception %s" % ws.exception())
 
     print("websocket connection closed")
-    await task
+    task.cancel()
 
     return ws
 
