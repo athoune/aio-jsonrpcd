@@ -8,6 +8,7 @@ from aiohttp_sse import sse_response
 
 routes = web.RouteTableDef()
 redis: aioredis.Redis = aioredis.from_url("redis://localhost", decode_responses=True)
+lazy_delete: str = open(f"{__path__[0]}/lazy_delete.lua", "r").read()
 
 
 @routes.get("/")
@@ -23,8 +24,8 @@ async def db(request):
 
 
 @routes.put("/{db}")
-async def db_put(request):
-    key: str = request.match_info["db"].encode("utf8")
+async def db_mput(request):
+    key: str = request.match_info["db"]
     values: dict = await request.json()
     print(values)
     async with redis.pipeline(transaction=True) as pipe:
@@ -35,6 +36,21 @@ async def db_put(request):
                 await pipe.hset(key, k, json.dumps(v))
         await pipe.publish(key, await request.text())
         await pipe.execute()
+    return web.Response()
+
+
+@routes.delete("/{db}/{key}")
+async def db_delete(request):
+    key: str = request.match_info["key"]
+    db: str = request.match_info["db"]
+
+    lazy = await redis.eval(
+        lazy_delete,
+        1,
+        db,
+        key,
+    )
+    print("lazy:", lazy)
     return web.Response()
 
 
