@@ -39,3 +39,6 @@ class CRUD:
                 yield response["data"]
             else:
                 yield json.loads(response["data"])
+
+    async def all(self, db: str) -> dict[str, str]:
+        return await self.redis.hgetall(db)

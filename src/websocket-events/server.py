@@ -36,8 +36,7 @@ async def home(request):
 @routes.get("/{db}")
 async def db(request):
     key: str = request.match_info["db"].encode("utf8")
-    all: dict[str, str] = await redis.hgetall(key)
-    return web.json_response(all)
+    return web.json_response(await crud.all(key))
 
 
 @routes.put("/{db}")
