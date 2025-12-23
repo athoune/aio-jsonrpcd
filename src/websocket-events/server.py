@@ -1,16 +1,28 @@
 from aiohttp import web
 import aiohttp
+from aiohttp.client_exceptions import ClientConnectionResetError
 from redis import asyncio as aioredis
 import asyncio
 import json
 import os
 from .crud import CRUD
+import uuid
 
 from aiohttp_sse import sse_response
 
+
+class TerminateTaskGroup(Exception):
+    """Exception raised to terminate a task group."""
+
+
+PLAYERS = "players"
+
+
 routes = web.RouteTableDef()
+app = web.Application()
+app[PLAYERS] = set()
+
 redis: aioredis.Redis = aioredis.from_url("redis://localhost", decode_responses=True)
-print("path:", __file__)
 here = os.path.dirname(__file__)
 lazy_delete: str = open(f"{here}/lazy_delete.lua", "r").read()
 crud: CRUD = CRUD("redis://localhost")
@@ -61,37 +73,58 @@ async def subscribe(request):
 
 @routes.get("/ws/{db}")
 async def websocket_handler(request):
+    db: str = request.match_info["db"]
+
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
-    key: str = request.match_info["db"].encode("utf8")
-    pubsub: aioredis.PubSub = redis.pubsub()
-    await pubsub.subscribe(key)
+    id = uuid.uuid1()
+    request.app[PLAYERS].add(id)
+    print(id, "joins the server", request.app[PLAYERS])
+    await ws.send_json(dict(action="connected", id=str(id)))
 
     async def sub():
-        async for response in pubsub.listen():
-            message: dict = await pubsub.handle_message(response)
-            print(message)
-            await ws.send_json(message)
+        async for message in crud.subscribe(db, raw=True):
+            try:
+                await ws.send_str(message)
+            except ClientConnectionResetError as e:
+                print(id, "websocket sub error:", e)
+                # await ws.close()
+                raise TerminateTaskGroup()
 
-    task = asyncio.create_task(sub())
+    async def uplink():
+        try:
+            async for msg in ws:
+                if msg.type == aiohttp.WSMsgType.TEXT:
+                    await crud.put_dict(db, json.loads(msg.data))
+                elif msg.type == aiohttp.WSMsgType.ERROR:
+                    print(id, "ws connection closed with exception %s" % ws.exception())
+                else:
+                    print(id, "WTF ws message:", msg)
+        except Exception as e:
+            print(id, "uplink error:", type(e), e)
+            raise TerminateTaskGroup()
 
-    async for msg in ws:
-        if msg.type == aiohttp.WSMsgType.TEXT:
-            if msg.data == "close":
-                await ws.close()
-            else:
-                await crud.put_dict(key, json.loads(msg.data))
-        elif msg.type == aiohttp.WSMsgType.ERROR:
-            print("ws connection closed with exception %s" % ws.exception())
+    def done_callback(fut):
+        print(id, "disconnects")  # , fut)
+        request.app[PLAYERS].remove(id)
 
-    print("websocket connection closed")
-    task.cancel()
+    try:
+        async with asyncio.TaskGroup() as tg:
+            t_sub = tg.create_task(sub())
+            t_sub.add_done_callback(done_callback)
+            t_uplink = tg.create_task(uplink())
+            t_uplink.add_done_callback(done_callback)
+    except* TerminateTaskGroup:
+        print(id, "leaves")
+
+    print(id, "websocket connection closed")
 
     return ws
 
 
+app.add_routes(routes)
+
+
 def listen():
-    app = web.Application()
-    app.add_routes(routes)
     web.run_app(app)
