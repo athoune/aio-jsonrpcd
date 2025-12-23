@@ -9,17 +9,19 @@ async def main():
             async def down():
                 async for msg in ws:
                     if msg.type == aiohttp.WSMsgType.TEXT:
-                        if msg.data == "close cmd":
-                            await ws.close()
-                            break
-                        else:
-                            await ws.send_str(msg.data + "/answer")
+                        print(msg.data)
                     elif msg.type == aiohttp.WSMsgType.ERROR:
                         break
 
-            t = asyncio.create_task(down())
-            await ws.send_json(dict(name="Gunter"))
-            t.cancel()
+            async def up():
+                await ws.send_json(dict(name="Gunter"))
+
+            async with asyncio.TaskGroup() as tg:
+                task_down = tg.create_task(down())
+                task_up = tg.create_task(up())
 
 
-asyncio.run(main())
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    print("Bye!")
