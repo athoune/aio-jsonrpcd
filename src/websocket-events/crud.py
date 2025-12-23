@@ -1,4 +1,5 @@
 from redis import asyncio as aioredis
+from redis.asyncio.client import PubSub
 import os
 import json
 
@@ -26,3 +27,15 @@ class CRUD:
             db,
             key,
         )
+
+    async def subscribe(self, db: str, raw=False):
+        assert db is not None
+        pubsub: PubSub = self.redis.pubsub()
+        await pubsub.subscribe(db)
+        async for response in pubsub.listen():
+            if response["type"] != "message":
+                continue
+            if raw:
+                yield response["data"]
+            else:
+                yield json.loads(response["data"])
