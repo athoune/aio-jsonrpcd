@@ -59,15 +59,31 @@ async def db_delete(request):
 
 @routes.get("/sub/{db}")
 async def subscribe(request):
-    key: str = request.match_info["db"].encode("utf8")
-    pubsub = redis.pubsub()
-    await pubsub.subscribe(key)
-    async with sse_response(request) as resp:
-        while resp.is_connected():
-            async for response in pubsub.listen():
-                if response["type"] == "message":
-                    await resp.send(response["data"])
-    return resp
+    key: str = request.match_info["db"]
+    id = uuid.uuid1()
+    request.app[PLAYERS].add(id)
+    print(id, ", SSE subscriber, joins the server", request.app[PLAYERS])
+    sub = crud.subscribe(key)
+
+    async def loop():
+        async with sse_response(request) as resp:
+            while resp.is_connected():
+                async for msg in sub:
+                    if resp.is_connected():
+                        await resp.send(json.dumps(msg))
+                    else:
+                        print("disconnected")
+                        return
+
+    def done(future):
+        print(id, ", SSE subscriber, leaves")
+        request.app[PLAYERS].remove(id)
+
+    t = asyncio.create_task(loop())
+    t.add_done_callback(done)
+    await t
+    done(None)
+    return web.Response()
 
 
 @routes.get("/ws/{db}")
