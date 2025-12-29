@@ -2,9 +2,11 @@ from typing import Callable
 
 
 class Dispatcher:
+    """Find a method by its name"""
+
     def __init__(self):
-        self.namespaces = dict[str, Callable]()
         self.methods = dict[str, Callable]()
+        self.namespaces = dict[str, Callable]()
 
     def register(self, key: str, action: Callable) -> None:
         self.methods[key] = action
@@ -12,7 +14,7 @@ class Dispatcher:
     def __getitem__(self, key: str) -> Callable:
         m: None | Callable = self.methods.get(key)
         if m is not None:
-            return jsonrpcize(m)
+            return jsonrpc_wrapper(m)
         else:
             raise Exception(f"method {key} is not found")
         """
@@ -26,7 +28,12 @@ class RPCException(Exception):
     pass
 
 
-def jsonrpcize(raw: Callable) -> Callable:
+def jsonrpc_wrapper(raw: Callable) -> Callable:
+    """
+    Transform a plain old async function to a function with a
+    jsonrpc method as input, a jsonrpc response as output
+    """
+
     async def a(args: dict) -> dict | None:
         params = args.get("params", None)
         try:

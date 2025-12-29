@@ -4,14 +4,16 @@ from typing import cast, Any, Callable
 import asyncio
 import json
 
-from json_rpc import Dispatcher
+from .json_rpc import Dispatcher
 
 
 class TerminateTaskGroup(Exception):
     """Exception raised to terminate a task group."""
 
 
-class JSONRPC:
+class JsonRpcWebsocketHandler:
+    """Handles jsonrpc in a websocket."""
+
     def __init__(self, dispatcher: Dispatcher):
         self.dispatcher = dispatcher
 

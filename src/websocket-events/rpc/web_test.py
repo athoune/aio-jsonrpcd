@@ -1,9 +1,9 @@
-from typing import cast
+from typing import cast, Any
 import pytest
 from aiohttp import web, WSMsgType
 import asyncio
-from json_rpc import Dispatcher
-from web import JSONRPC
+from .json_rpc import Dispatcher
+from .web import JsonRpcWebsocketHandler
 from aiohttp._websocket.models import WSMessage
 import json
 
@@ -43,13 +43,13 @@ async def testPlop():
 
     dispatcher = Dispatcher()
     dispatcher.register("hello", hello)
-    rpc = JSONRPC(dispatcher)
+    rpc = JsonRpcWebsocketHandler(dispatcher)
     ws = WebsocketMockup()
     t = asyncio.create_task(rpc.wsloop(cast(web.WebSocketResponse, ws)))
     await ws.read.put(
         '{"jsonrpc":"2.0", "method":"hello", "id": 1, "params": ["world"]}'
     )
-    resp = json.loads(await ws.wrote.get())
+    resp: dict[str, Any] = json.loads(await ws.wrote.get())
     print(resp)
     assert resp["result"] == "Hello world"
     assert resp["id"] == 1
