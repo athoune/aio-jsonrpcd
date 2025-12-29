@@ -10,11 +10,16 @@ class Dispatcher:
         self.methods[key] = action
 
     def __getitem__(self, key: str) -> Callable:
-        if key in self.methods:
-            return jsonrpcize(self.methods[key])
+        m: None | Callable = self.methods.get(key)
+        if m is not None:
+            return jsonrpcize(m)
+        else:
+            raise Exception(f"method {key} is not found")
+        """
         ns = key.split(".")[0]
         # FIXME how can I pass the complete key to ne namespace handler ?
         return jsonrpcize(self.namespaces[ns])
+        """
 
 
 class RPCException(Exception):
