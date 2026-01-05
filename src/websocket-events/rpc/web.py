@@ -17,12 +17,6 @@ class JsonRpcWebsocketHandler:
     def __init__(self, dispatcher: Dispatcher):
         self.dispatcher = dispatcher
 
-    async def rpc(self, request: web.Request) -> web.Response:
-        ws = web.WebSocketResponse()
-        await ws.prepare(request)
-        await self.wsloop(ws)
-        return cast(web.Response, ws)
-
     async def push(self):
         raise TerminateTaskGroup()
 
@@ -78,3 +72,25 @@ class JsonRpcWebsocketHandler:
             print(id, "leaves")
 
         print(id, "websocket connection closed")
+
+
+class JsonRpsWebHandler:
+    def __init__(
+        self, ws_handler: JsonRpcWebsocketHandler, dispatcher: Dispatcher | Callable
+    ):
+        self.ws_handler = ws_handler
+        self.dispatcher: Dispatcher | Callable = dispatcher
+
+    async def rpc(self, request: web.Request) -> web.Response:
+        if isinstance(Dispatcher, self.dispatcher):  # static
+            d: Dispatcher = self.dispatcher
+        else:  # dynamic
+            d: Dispatcher = self.dispatcher(request)
+        loop = JsonRpcWebsocketHandler(d)
+
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        await loop.wsloop(ws)
+
+        return cast(web.Response, ws)
