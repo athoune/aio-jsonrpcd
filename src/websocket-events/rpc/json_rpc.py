@@ -11,17 +11,19 @@ class Dispatcher:
     def register(self, key: str, action: Callable) -> None:
         self.methods[key] = action
 
+    def register_namespace(self, ns: str, action: Callable) -> None:
+        self.namespaces[ns] = action
+
     def __getitem__(self, key: str) -> Callable:
+        ns = key.split(".")[0]
         m: None | Callable = self.methods.get(key)
         if m is not None:
             return jsonrpc_wrapper(m)
+        n: None | Callable = self.namespaces.get(ns)
+        if n is not None:
+            return jsonrpc_wrapper(n)
         else:
-            raise Exception(f"method {key} is not found")
-        """
-        ns = key.split(".")[0]
-        # FIXME how can I pass the complete key to ne namespace handler ?
-        return jsonrpcize(self.namespaces[ns])
-        """
+            raise Exception(f"{key} is not a method or part of a namespace")
 
 
 class RPCException(Exception):
