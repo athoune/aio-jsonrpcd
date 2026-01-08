@@ -1,4 +1,4 @@
-from typing import Coroutine
+from typing import Coroutine, Callable
 from asyncio import Queue, create_task, Future, Task
 
 
@@ -15,8 +15,8 @@ class Tube:
         self._queries.discard(future)
         self._answers.put_nowait(future.result())
 
-    def put(self, coro: Coroutine) -> None:
-        t: Task = create_task(coro)
+    def put(self, coroutine: Coroutine) -> None:
+        t: Task = create_task(coroutine)
         self._queries.add(t)
         t.add_done_callback(self._done)
 
@@ -25,3 +25,21 @@ class Tube:
 
     async def __anext__(self):
         return await self._answers.get()
+
+
+class AutoTube:
+    def __init__(self, cb: Callable) -> None:
+        self._cb = cb
+        self._queries = set()
+
+    def __len__(self) -> int:
+        return len(self._queries)
+
+    def _done(self, future: Future) -> None:
+        self._queries.discard(future)
+        self._cb(future.result())
+
+    def put(self, coroutine: Coroutine) -> None:
+        t: Task = create_task(coroutine)
+        self._queries.add(t)
+        t.add_done_callback(self._done)
