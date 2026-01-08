@@ -1,4 +1,4 @@
-from .json_rpc import Dispatcher, jsonrpc_wrapper
+from .json_rpc import Dispatcher, jsonrpc_wrapper, JsonRpcDispatcher
 import pytest
 from typing import Callable
 
@@ -9,6 +9,16 @@ async def testDispatcher():
         return f"hello {name}"
 
     d = Dispatcher()
+    d.register("test", _test)
+    assert await d["test"]("World") == "hello World"
+
+
+@pytest.mark.asyncio
+async def testJsonRpcDispatcher():
+    async def _test(name: str):
+        return f"hello {name}"
+
+    d = JsonRpcDispatcher()
     d.register("test", _test)
     a = await d["test"](dict(jsonrpc="2.0", id=1, params=["World"], method="_test"))
     assert a["result"] == "hello World"

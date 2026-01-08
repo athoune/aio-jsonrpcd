@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any, Coroutine
 
 
 class Dispatcher:
@@ -15,15 +15,24 @@ class Dispatcher:
         self.namespaces[ns] = action
 
     def __getitem__(self, key: str) -> Callable:
+        """Get a jsonrpc wrapped method."""
         ns = key.split(".")[0]
         m: None | Callable = self.methods.get(key)
         if m is not None:
-            return jsonrpc_wrapper(m)
+            return m
         n: None | Callable = self.namespaces.get(ns)
         if n is not None:
-            return jsonrpc_wrapper(n)
+            return n
         else:
             raise Exception(f"{key} is not a method or part of a namespace")
+
+
+class JsonRpcDispatcher(Dispatcher):
+    def register(self, key: str, action: Callable) -> None:
+        return super().register(key, jsonrpc_wrapper(action))
+
+    def __call__(self, request: dict[str, Any]) -> Coroutine:
+        return self[request["method"]](request)
 
 
 class RPCException(Exception):
