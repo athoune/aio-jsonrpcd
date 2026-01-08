@@ -16,13 +16,14 @@ class Dispatcher:
 
     def __getitem__(self, key: str) -> Callable:
         """Get a jsonrpc wrapped method."""
-        ns = key.split(".")[0]
+        slugs = key.split(".")
+        ns = slugs[0]
         m: None | Callable = self.methods.get(key)
         if m is not None:
             return m
         n: None | Callable = self.namespaces.get(ns)
         if n is not None:
-            return n
+            return n(slugs[1])
         else:
             raise Exception(f"{key} is not a method or part of a namespace")
 

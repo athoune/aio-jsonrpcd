@@ -14,6 +14,26 @@ async def testDispatcher():
 
 
 @pytest.mark.asyncio
+async def testNamespace():
+    async def _hello(name: str):
+        return f"Hello {name}"
+
+    async def _add(a: int, b: int) -> int:
+        return a + b
+
+    def _broadcast(method: str) -> Callable:
+        if method == "add":
+            return _add
+        raise Exception("mehhh")
+
+    d = Dispatcher()
+    d.register("hello", _hello)
+    d.register_namespace("broadcast", _broadcast)
+    assert await d["broadcast.add"](41, 1) == 42
+    assert await d["hello"]("Monde") == "Hello Monde"
+
+
+@pytest.mark.asyncio
 async def testJsonRpcDispatcher():
     async def _test(name: str):
         return f"hello {name}"
