@@ -14,6 +14,18 @@ class OutTest:
         return len(self.messages)
 
 
+def testStore():
+    app = App()
+    app["db"] = 42
+    app["name"] = "My App"
+
+    assert len(app) == 2
+    assert set(key for key in app) == {"name", "db"}
+    assert "name" in app
+    del app["name"]
+    assert "name" not in app
+
+
 @pytest.mark.asyncio
 async def testRoom():
     app = App()
