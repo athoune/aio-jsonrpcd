@@ -27,8 +27,8 @@ async def testRoom():
     room = Room(app)
     alice = User("Alice")
     bob = User("Bob")
-    room["alice"] = alice
-    room["bob"] = bob
+    room.adduser(alice)
+    room.adduser(bob)
 
     out_a = OutTest()
     out_b = OutTest()
@@ -74,7 +74,8 @@ async def testApp():
 
 @pytest.mark.asyncio
 async def testAnonymous():
-    session = Session()
+    out = OutTest()
+    session = Session(out)
     tests = list()  # I need a pointer, not a value
 
     @anonymous

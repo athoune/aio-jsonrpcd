@@ -1,4 +1,4 @@
-from typing import Any, Callable, Awaitable, Coroutine, Protocol, AsyncGenerator
+from typing import Any, Callable, Awaitable, AsyncGenerator, MutableMapping
 
 
 MessageIn = AsyncGenerator[dict[str, Any], None]
@@ -11,8 +11,33 @@ class Bounced(Exception):
     pass
 
 
-class Session:
-    _values: dict
+class Store(MutableMapping[str, Any]):
+    pass
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._store = dict[str, Any]()
+
+    def __iter__(self):
+        return iter(self._store)
+
+    def __len__(self) -> int:
+        return len(self._store)
+
+    def __delitem__(self, key: str) -> None:
+        del self._store[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._store[key] = value
+
+    def __getitem__(self, key: str, /) -> Any:
+        return self._store[key]
+
+    def __hash__(self) -> int:
+        return id(self)
+
+
+class Session(Store):
     _user: "User | None"
     authenticated: bool
     _out: MessageOut
@@ -22,7 +47,7 @@ class Session:
         message_out: MessageOut,
         user: "User | None" = None,
     ) -> None:
-        self._values = dict()
+        super().__init__()
         self.authenticated = False
         if user is None:
             self._user = None
@@ -31,7 +56,7 @@ class Session:
         self._out = message_out
 
     @property
-    def user(self) -> "User":
+    def user(self) -> "User | None":
         return self._user
 
     @user.setter
@@ -39,24 +64,8 @@ class Session:
         usr.sessions.add(self)
         self._user = usr
 
-    def __setitem__(self, key, value):
-        self._values[key] = value
-
-    def __getitem__(self, key) -> Any:
-        return self._values[key]
-
     def authenticate(self):
         self.authenticated = True
-
-    # FIXME a getter and a setter that does nothing, why ?
-    @property
-    def user(self) -> "User | None":
-        return self._user
-
-    @user.setter
-    def user(self, usr: "User"):
-        usr.sessions.add(self)
-        self._user = usr
 
     async def send_message(self, message: dict[str, Any]):
         """
@@ -65,13 +74,14 @@ class Session:
         await self._out(message)
 
 
-class User:
+class User(Store):
     _room: "Room"
     sessions: set[Session]
     context: dict[str, Any]
     login: str
 
     def __init__(self, login: str) -> None:
+        super().__init__()
         self.sessions = set[Session]()
         self.context = dict[str, Any]()
         self.login = login
@@ -85,26 +95,25 @@ class User:
         return self._room
 
 
-class Room:
+class Room(Store):
     _app: "App"
     _users: dict[str, User]
 
     def __init__(self, app: "App") -> None:
+        super().__init__()
         self._app = app
         self._users = dict[str, User]()
 
     def adduser(self, user: User):
-        self._users[user.login] = User
+        self._users[user.login] = user
+
+    @property
+    def users(self) -> dict[str, User]:
+        return self._users
 
     @property
     def app(self):
         return self._app
-
-    def __delitem__(self, key: Any):
-        del (self._users, key)
-
-    def __setitem__(self, key: Any, value: User):
-        self._users[key] = value
 
     async def broadcast(self, msg: dict[str, Any]):
         for user in self._users.values():
@@ -112,16 +121,16 @@ class Room:
                 await session.send_message(msg)
 
 
-class App:
+class App(Store):
     _handlers: dict[str, Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]]
     _users: dict[str, User]
 
     def __init__(self) -> None:
+        super().__init__()
         self._handlers = dict()
         self._users = dict()
 
     def add_user(self, user: User):
-        user._app = self
         self._users[user.login] = user
 
     def find_user(self, login: str) -> User:
