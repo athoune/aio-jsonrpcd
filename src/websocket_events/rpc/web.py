@@ -1,96 +1,111 @@
 from aiohttp import web
 import aiohttp
-from typing import cast, Any, Callable
-import asyncio
+from typing import cast, Any, Callable, AsyncGenerator, Awaitable
 import json
 
-from .json_rpc import Dispatcher
+
+from .tube import AutoTube
+from .app import Bounced, User
 
 
-class TerminateTaskGroup(Exception):
-    """Exception raised to terminate a task group."""
+async def websocketJsonRpcIterator(
+    ws: web.WebSocketResponse,
+) -> AsyncGenerator[dict[str, Any], None]:
+    "Yield message as dict, don't bother with websockets or JSON details."
+    try:
+        async for msg in ws:
+            if msg.type == aiohttp.WSMsgType.TEXT:
+                message: dict = msg.json()
+                yield message
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                print(
+                    "ws connection closed with exception %s" % ws.exception(),
+                )
+                raise ws.exception()
+            else:
+                raise Exception("Unhandled websocket message type:", msg.type)
+    finally:
+        if not ws.closed:
+            await ws.close()
 
 
-class JsonRpcWebsocketHandler:
-    """Handles jsonrpc in a websocket."""
+class JsonRpcUserException(Exception):
+    def __init__(self, error: dict[str, Any], id: Any | None = None) -> None:
+        self._error = error
+        self._id = id
+        super().__init__(id, error)
 
-    def __init__(self, dispatcher: Dispatcher):
-        self.dispatcher = dispatcher
+    def message(self) -> dict[str, Any]:
+        msg = dict(jsonrpc="2.0", error=self._error)
+        if self._id is not None:
+            msg["id"] = self._id
+        return msg
 
-    async def push(self):
-        raise TerminateTaskGroup()
 
-    async def detached_response(
-        self, ws: web.WebSocketResponse, message: dict[str, Any]
+class Bounce:
+    def __init__(
+        self,
+        auth_method: Callable[..., Awaitable[tuple[User, str, Any]]],
+        on_auth: Callable[[User], None] | None = None,
     ):
-        method: Callable = self.dispatcher[message["method"]]
-        print("method", method, type(method))
-        response: dict[str, Any] = await method(message)
-        await ws.write(json.dumps(response).encode())
+        self.auth_method = auth_method
+        self.on_auth = on_auth
 
-    async def pull(self, ws: web.WebSocketResponse):
-        try:
-            async for msg in ws:
-                if msg.type == aiohttp.WSMsgType.TEXT:
-                    try:
-                        message: dict = msg.json()
-                    except Exception as e:
-                        error = dict(
-                            code=-32700, data=str(e), message="JSON parsing error"
-                        )
-                        await ws.write(json.dumps(error).encode())
-                        continue
-                    if "method" in message:
-                        asyncio.create_task(self.detached_response(ws, message))
-                    elif "result" in message:
-                        pass
-                    else:
-                        raise Exception("")
-
-                elif msg.type == aiohttp.WSMsgType.ERROR:
-                    print(
-                        id,
-                        "ws connection closed with exception %s" % ws.exception(),
-                    )
-                else:
-                    print(id, "WTF ws message:", msg)
-        except Exception as e:
-            print(id, "uplink error:", type(e), e)
-            raise TerminateTaskGroup()
-
-    def done_callback(self, fut):
-        print(id, "disconnects")  # , fut)
-
-    async def wsloop(self, ws: web.WebSocketResponse):
-        try:
-            async with asyncio.TaskGroup() as tg:
-                t_sub = tg.create_task(self.push())
-                t_sub.add_done_callback(self.done_callback)
-                t_uplink = tg.create_task(self.pull(ws))
-                t_uplink.add_done_callback(self.done_callback)
-        except* TerminateTaskGroup:
-            print(id, "leaves")
-
-        print(id, "websocket connection closed")
+    async def __call__(self, user: User, message: dict[str, Any]) -> bool:
+        if not user.authenticated:
+            if message["method"] != "authenticate":
+                raise Bounced(user)
+            await self.auth_method(user, *message["params"])
+            if self.on_auth is not None:
+                self.on_auth(user)
+            return True
+        else:
+            return False
 
 
 class JsonRpsWebHandler:
-    def __init__(
-        self, ws_handler: JsonRpcWebsocketHandler, dispatcher: Dispatcher | Callable
-    ):
-        self.ws_handler = ws_handler
-        self.dispatcher: Dispatcher | Callable = dispatcher
+    """aiohttp web handler managing the websocket connection."""
 
-    async def rpc(self, request: web.Request) -> web.Response:
-        if isinstance(Dispatcher, self.dispatcher):  # static
-            d: Dispatcher = self.dispatcher
-        else:  # dynamic
-            d: Dispatcher = self.dispatcher(request)
-        loop = JsonRpcWebsocketHandler(d)
+    def __init__(self, dispatcher: JsonRpcDispatcher, bounce: Bounce):
+        self.dispatcher: JsonRpcDispatcher = dispatcher
+        self.bounce = bounce
 
+    async def rpc_handler(self, request: web.Request) -> web.Response:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
-        await loop.wsloop(ws)
+        user = User()
+        await self.jsonRpcWebsocketLoop(ws, user)
 
         return cast(web.Response, ws)
+
+    async def jsonRpcWebsocketLoop(self, ws: web.WebSocketResponse, user: User):
+        """Handles jsonrpc exchanges in a websocket connection."""
+
+        async def _writeResponse(response: dict[str, Any]):
+            await ws.write(json.dumps(response).encode())
+
+        _tube = AutoTube(_writeResponse)
+
+        try:
+            async for message in websocketJsonRpcIterator(ws):
+                if "method" in message:
+                    try:
+                        if await self.bounce(user, message):
+                            continue
+                        _tube.put(self.dispatcher(message))
+                    except Bounced:
+                        id_: int | None = None
+                        if "id" in message:
+                            id_ = message["id"]
+                        raise JsonRpcUserException(
+                            dict(code=-32000, message="Unauthenticated"), id_
+                        )
+                elif "result" in message:
+                    pass  # FIXME
+                else:
+                    raise Exception(f"strange message : {message}")
+        except JsonRpcUserException as e:
+            await _writeResponse(e.message())
+        finally:
+            await ws.close()
