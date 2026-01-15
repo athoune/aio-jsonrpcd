@@ -1,7 +1,6 @@
 import pytest
 from typing import cast, Any
 from .app import User, App, Request, Session, anonymous, Bounced, Room
-import sys
 
 
 class OutTest:
@@ -51,7 +50,8 @@ async def testApp():
     async def _hello(request: Request) -> str:
         return f"Hello {cast(list, request.params)[0]}"
 
-    session = Session(sys.stdout)
+    out = OutTest()
+    session = Session(out)
 
     with pytest.raises(Bounced):
         await app._handle(session, dict(method="hello", params=["World"]))
@@ -70,6 +70,23 @@ async def testApp():
     )
     resp = await app._handle(session, dict(method="hello", params=["World"]))
     assert resp == "Hello World"
+
+
+@pytest.mark.asyncio
+async def testNamespace():
+    app = App()
+    app.add_user(User("alice"))
+    out = OutTest()
+    session = Session(out)
+
+    @app.namespace("test")
+    @anonymous
+    async def _ns(request: Request) -> str:
+        ns, method = request.method.split(".")
+        return f"ns: {ns} method:{method}"
+
+    resp = await app._handle(session, dict(method="test.hello", params=["World"]))
+    assert resp == "ns: test method:hello"
 
 
 @pytest.mark.asyncio

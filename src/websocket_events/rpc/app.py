@@ -1,5 +1,6 @@
 from typing import Any, Callable, Awaitable, AsyncGenerator, MutableMapping
 
+from .dispatcher import Dispatcher
 
 MessageIn = AsyncGenerator[dict[str, Any], None]
 MessageOut = Callable[[dict[str, Any]], Awaitable[None]]
@@ -122,12 +123,14 @@ class Room(Store):
 
 
 class App(Store):
-    _handlers: dict[str, Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]]
+    _handlers: Dispatcher[Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]]
     _users: dict[str, User]
 
     def __init__(self) -> None:
         super().__init__()
-        self._handlers = dict()
+        self._handlers = Dispatcher[
+            Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]
+        ]()
         self._users = dict()
 
     def add_user(self, user: User):
@@ -138,7 +141,13 @@ class App(Store):
 
     def handler(self, method: str):
         def decorator(function):
-            self._handlers[method] = function
+            self._handlers.put_handler(method, function)
+
+        return decorator
+
+    def namespace(self, ns: str):
+        def decorator(function):
+            self._handlers.put_namespace(ns, function)
 
         return decorator
 
