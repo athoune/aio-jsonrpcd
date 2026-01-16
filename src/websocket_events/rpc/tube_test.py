@@ -1,15 +1,16 @@
 import pytest
 from .json_rpc import jsonrpc_wrapper
-from .tube import Tube
-from asyncio import sleep
+from .tube import Tube, AutoTube
+from asyncio import sleep, Event
+
+
+async def _add(a: int, b: int, wait=0) -> int:
+    await sleep(wait)
+    return a + b
 
 
 @pytest.mark.asyncio
 async def test_tube():
-    async def _add(a: int, b: int, wait=0) -> int:
-        await sleep(wait)
-        return a + b
-
     w = jsonrpc_wrapper(_add)
     tube = Tube()
     tube.put(w(dict(jsonrpc="2.0", id=1, params=[1, 1, 0.5], method="_add")))
@@ -24,3 +25,34 @@ async def test_tube():
     assert len(results) == 2
     assert results[0]["result"] == 42
     assert results[1]["result"] == 2
+
+
+class Waiter:
+    def __init__(self, n: int) -> None:
+        self._n = n
+        self._event = Event()
+
+    def done(self) -> int:
+        self._n -= 1
+        if self._n == 0:
+            self._event.set()
+        return self._n
+
+    async def wait(self):
+        await self._event.wait()
+
+
+@pytest.mark.asyncio
+async def testAutoTube():
+    waiter = Waiter(2)
+    a = set()
+
+    def done(result):
+        waiter.done()
+        a.add(result)
+
+    auto = AutoTube(done)
+    auto.put(_add(1, 2))
+    auto.put(_add(1, 3))
+    await waiter.wait()
+    assert a == {3, 4}
