@@ -163,7 +163,7 @@ class App(Store):
             "_anonymously" not in method.__qualname__
             and not request.session.authenticated
         ):  # FIXME introspection seems ugly
-            raise Bounced()
+            raise Bounced(f"'{request.method}' method needs authentication")
         return await method(request)
 
 
