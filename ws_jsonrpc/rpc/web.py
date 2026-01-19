@@ -126,7 +126,7 @@ class JsonRpcWebHandler:
     def __init__(self, app=App):
         self.app: App = app
 
-    async def rpc_handler(self, request: web.Request) -> web.Response:
+    async def __call__(self, request: web.Request) -> web.Response:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         await self._json_rpc_loop(ws)
