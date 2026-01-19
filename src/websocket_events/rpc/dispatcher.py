@@ -1,6 +1,10 @@
 from typing import Callable
 
 
+class MethodNotFoundException(Exception):
+    pass
+
+
 class Dispatcher[T: Callable]:
     # Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]
     _handlers: dict[str, T]
@@ -18,6 +22,9 @@ class Dispatcher[T: Callable]:
 
     def __getitem__(self, name: str) -> T:
         slugs = name.split(".")
-        if len(slugs) > 1 and slugs[0] in self._namespaces:
-            return self._namespaces[slugs[0]]
-        return self._handlers[name]
+        try:
+            if len(slugs) > 1 and slugs[0] in self._namespaces:
+                return self._namespaces[slugs[0]]
+            return self._handlers[name]
+        except KeyError:
+            raise MethodNotFoundException(f"Unregistered method: {name}")
