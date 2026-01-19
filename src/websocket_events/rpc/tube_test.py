@@ -1,3 +1,4 @@
+from typing import Coroutine
 import pytest
 from .json_rpc import jsonrpc_wrapper
 from .tube import Tube, AutoTube
@@ -47,12 +48,13 @@ async def testAutoTube():
     waiter = Waiter(2)
     a = set()
 
-    def done(result):
+    async def do(co: Coroutine):
+        result = await co
         waiter.done()
         a.add(result)
 
-    auto = AutoTube(done)
-    auto.put(_add(1, 2))
-    auto.put(_add(1, 3))
+    auto = AutoTube()
+    auto.put(do(_add(1, 2)))
+    auto.put(do(_add(1, 3)))
     await waiter.wait()
     assert a == {3, 4}
