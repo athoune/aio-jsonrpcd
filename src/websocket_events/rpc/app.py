@@ -39,6 +39,9 @@ class Store(MutableMapping[str, Any]):
 
 
 class Session(Store):
+    """Websocket Session.
+    Client connects and establish a connection."""
+
     _user: "User | None"
     authenticated: bool
     _out: MessageOut
@@ -140,7 +143,9 @@ class App(Store):
         return self._users[login]
 
     def handler(self, method: str):
-        def decorator(function):
+        def decorator(
+            function: Callable[..., Awaitable[tuple["Request", dict[str, Any]]]],
+        ):
             self._handlers.put_handler(method, function)
 
         return decorator
