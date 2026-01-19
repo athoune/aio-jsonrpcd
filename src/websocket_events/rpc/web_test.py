@@ -1,11 +1,10 @@
-from asyncio.locks import Event
 from typing import cast, Any
 import pytest
 from aiohttp import web, WSMsgType
 import asyncio
 from aiohttp._websocket.models import WSMessage
 import json
-from .web import websocketJsonRpcIterator, JsonRpcWebHandler
+from .web import JsonRpcWebHandler
 from .app import Bounced, App, Request, anonymous
 
 

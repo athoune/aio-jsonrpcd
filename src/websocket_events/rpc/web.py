@@ -34,7 +34,7 @@ async def websocketJsonRpcIterator(
                         response = dict(
                             jsonrpc="2.0",
                             error=dict(
-                                code=-32600, message="Invalid Request", data=str(e)
+                                code=-32600, message="Invalid Request", data=error
                             ),
                         )
                         await ws.send_json(response)
