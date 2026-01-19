@@ -1,27 +1,37 @@
 import aiohttp
 import asyncio
+import aioconsole
 
 
-async def main():
-    async with aiohttp.ClientSession() as session:
-        async with session.ws_connect("http://localhost:8080/ws/prout") as ws:
+class Client:
+    async def connect(self, url: str):
+        session = aiohttp.ClientSession()
+        self.ws = await session.ws_connect(url)
 
-            async def down():
-                async for msg in ws:
-                    if msg.type == aiohttp.WSMsgType.TEXT:
-                        print(msg.data)
-                    elif msg.type == aiohttp.WSMsgType.ERROR:
-                        break
+    async def loop(self):
+        async for msg in self.ws:
+            if msg.type == aiohttp.WSMsgType.TEXT:
+                print(msg.data)
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                break
 
-            async def up():
-                await ws.send_json(dict(name="Gunter"))
-
-            async with asyncio.TaskGroup() as tg:
-                task_down = tg.create_task(down())
-                task_up = tg.create_task(up())
+    async def send(self, message: str):
+        await self.ws.send_str(message)
 
 
-try:
-    asyncio.run(main())
-except KeyboardInterrupt:
-    print("Bye!")
+async def main(url: str):
+    client = Client()
+    await client.connect(url)
+    t = asyncio.create_task(client.loop())
+    while True:
+        line = await aioconsole.ainput("->")
+        await client.send(line)
+
+
+if __name__ == "__main__":
+    import sys
+
+    try:
+        asyncio.run(main(sys.argv[1]))
+    except KeyboardInterrupt:
+        print("Bye!")
