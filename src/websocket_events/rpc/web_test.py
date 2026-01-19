@@ -1,25 +1,12 @@
+from asyncio.locks import Event
 from typing import cast, Any
 import pytest
 from aiohttp import web, WSMsgType
 import asyncio
-from .json_rpc import JsonRpcDispatcher
 from aiohttp._websocket.models import WSMessage
 import json
-from .web import jsonRpcWebsocketLoop, websocketJsonRpcIterator, Bounce
-from .auth import none_auth
-from .app import User, Bounced
-
-
-async def app_test():
-    routes = web.RouteTableDef()
-    app = web.Application()
-
-    @routes.get("/rpc")
-    async def testWS(request: web.Request):
-        return web.Response()  # FIXME
-
-    app.add_routes(routes)
-    web.run_app(app)
+from .web import websocketJsonRpcIterator, JsonRpcWebHandler
+from .app import Bounced, App, Request, anonymous
 
 
 class WebsocketMockup:
@@ -38,6 +25,9 @@ class WebsocketMockup:
         "Send response."
         await self._responses.put(txt)
 
+    async def send_json(self, data: Any):
+        await self._responses.put(json.dumps(data))
+
     async def read(self) -> str:
         "Next request."
         return await self._requests.get()
@@ -52,6 +42,11 @@ class WebsocketMockup:
 
     async def close(self):
         self.closed = True
+
+    def dump(self) -> str:
+        return (
+            f"requests: {self._requests.qsize()} responses: {self._responses.qsize()}"
+        )
 
 
 class AsyncInfiniteLoop:
@@ -86,111 +81,90 @@ async def testWebsocketMockup():
     assert "b" == await ws.get()
 
 
+@pytest.fixture
+def app():
+    _app = App()
+
+    @_app.handler("hello")
+    async def hello(request: Request) -> str:
+        return f"Hello {request.params[0]}"
+
+    return _app
+
+
 @pytest.mark.asyncio
-async def testJsonWsIterator():
+async def testBadJson(app: App):
+    web_handler = JsonRpcWebHandler(app)
     ws = WebsocketMockup()
+    t = asyncio.create_task(web_handler._json_rpc_loop(cast(web.WebSocketResponse, ws)))
 
-    async def _client():
-        await ws.put(
-            '{"jsonrpc":"2.0", "method":"hello", "id": 1, "params": ["world"]}'
-        )
-        await ws.put("some garbage")
-
-    t = asyncio.create_task(_client())
-    one_message = False
-    one_json_error = False
-
-    try:
-        async for message in websocketJsonRpcIterator(cast(web.WebSocketResponse, ws)):
-            assert message["id"] == 1
-            one_message = True
-    except json.JSONDecodeError:
-        one_json_error = True
-
-    assert one_message
-    assert one_json_error
-    assert t.done
-
-
-@pytest.mark.asyncio
-async def testBounce():
-    b = Bounce(none_auth, None)
-    alice = User()
-    assert not alice.authenticated
-    assert await b(alice, dict(method="authenticate", params=("Alice", 42)))
-    assert alice.authenticated
-    assert alice.login == "Alice"
-    assert not await b(alice, dict(method="authenticate", params=("Alice", 42)))
-
-    bob = User()
-    assert not bob.authenticated
-    bounced = False
-    try:
-        await b(bob, dict(method="hello", params="world"))
-    except Bounced:
-        bounced = True
-    assert bounced
-    assert not bob.authenticated
-
-
-@pytest.mark.asyncio
-async def testJsonRpcWebsocketLoop():
-    ws = WebsocketMockup()
-    dispatcher = JsonRpcDispatcher()
-
-    t = asyncio.create_task(
-        jsonRpcWebsocketLoop(
-            dispatcher, Bounce(none_auth, None), cast(web.WebSocketResponse, ws)
-        )
-    )
-
-    await ws.put('{"jsonrpc":"2.0", "method":"hello", "id": 1, "params": ["world"]}')
-    message = json.loads(await ws.get())
-    print("message:", message)
-    assert message["result"] == "hello world"
-
-    assert t.cancelled
-
-
-@pytest.mark.asyncio
-async def testPlop():
-    async def hello(txt: str) -> str:
-        return f"Hello {txt}"
-
-    dispatcher = JsonRpcDispatcher()
-    dispatcher.register("hello", hello)
-    ws = WebsocketMockup()
-    t = asyncio.create_task(
-        jsonRpcWebsocketLoop(dispatcher, none_auth, cast(web.WebSocketResponse, ws))
-    )
-
-    def dump(task: asyncio.Task):
-        print(task)
-
-    t.add_done_callback(dump)
-
-    await ws.put('{"jsonrpc":"2.0", "method":"hello", "id": 1, "params": ["world"]}')
+    # The JSON is malformed
+    await ws.put("""{
+        "jsonrpc":"2.0",
+        "method":"hello",
+        "id": 1,
+        "params": ["world"
+        }""")
+    debug = ws.dump()
+    print(debug)
     resp: dict[str, Any] = json.loads(await ws._responses.get())
+    debug = ws.dump()
+    print(debug)
     assert "error" in resp
-    assert ws.closed
     assert t.done
 
-    ws = WebsocketMockup()
-    t = asyncio.create_task(
-        jsonRpcWebsocketLoop(dispatcher, none_auth, cast(web.WebSocketResponse, ws))
-    )
 
-    await ws.read.put(
-        '{"jsonrpc":"2.0", "method":"authenticate", "id": 1, "params": ["Bob", "Sinclar"]}'
+@pytest.mark.asyncio
+async def testBadMethod(app: App):
+    web_handler = JsonRpcWebHandler(app)
+    ws = WebsocketMockup()
+    t = asyncio.create_task(web_handler._json_rpc_loop(cast(web.WebSocketResponse, ws)))
+
+    await ws.put(
+        """{
+            "jsonrpc":"2.0",
+            "method":"authenticate",
+            "id": 1,
+            "params": ["Bob", "Sinclar"]}"""
     )
+    resp: dict[str, Any] = json.loads(await ws._responses.get())
+    # The method is not known by the application
+    assert "error" in resp
+    assert t.done
+
+
+@pytest.mark.asyncio
+async def testAuthenticate(app: App):
+    web_handler = JsonRpcWebHandler(app)
+
+    @app.handler("authenticate")
+    @anonymous
+    async def _authenticate(request: Request):
+        # some auth
+        request.session.authenticated = True
+
+    ws = WebsocketMockup()
+    t = asyncio.create_task(web_handler._json_rpc_loop(cast(web.WebSocketResponse, ws)))
+
+    await ws.put(
+        """{
+            "jsonrpc":"2.0",
+            "method":"authenticate",
+            "id": 1,
+            "params": ["Bob", "Sinclar"]}"""
+    )
+    resp: dict[str, Any] = json.loads(await ws._responses.get())
+
+    assert resp["result"] is None
+
+    await ws.put("""{
+        "jsonrpc":"2.0",
+        "method":"hello",
+        "id": 1,
+        "params": ["world"]
+        }""")
     resp: dict[str, Any] = json.loads(await ws._responses.get())
     print(resp)
-
-    await ws.read.put(
-        '{"jsonrpc":"2.0", "method":"hello", "id": 2, "params": ["world"]}'
-    )
-    resp: dict[str, Any] = json.loads(await ws._responses.get())
-
     assert resp["result"] == "Hello world"
     assert resp["id"] == 1
     assert t.cancel()
