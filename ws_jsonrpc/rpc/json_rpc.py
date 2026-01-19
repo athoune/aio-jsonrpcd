@@ -74,3 +74,18 @@ def jsonrpc_wrapper(raw: Callable) -> Callable:
             )
 
     return a
+
+
+class JsonRpcRequestException(Exception):
+    pass
+
+
+def checkup(message: dict[str, Any]):
+    if message.get("jsonrpc") != "2.0":
+        raise JsonRpcRequestException(
+            f'jsonrpc version must be "2.0" not {message.get("jsonrpc")}'
+        )
+    if "method" not in message:
+        raise JsonRpcRequestException("Method is mandatory")
+    if "params" not in message:
+        message["params"] = []

@@ -3,6 +3,8 @@ from aiohttp import web
 import aiohttp
 from typing import cast, Any, AsyncGenerator
 
+from ws_jsonrpc.rpc.json_rpc import checkup, JsonRpcRequestException
+
 from .tube import AutoTube
 from .app import App, Session
 from .dispatcher import MethodNotFoundException
@@ -24,22 +26,17 @@ async def websocketJsonRpcIterator(
                         error=dict(code=-32700, message="Parse error", data=str(e)),
                     )
                     await ws.send_json(response)
-                else:
-                    error = ""
-                    if message.get("jsonrpc") != "2.0":
-                        error += f'jsonrpc version must be "2.0" not {message.get("jsonrpc")}. '
-                    if "method" not in message:
-                        error += "Method is mandatory."
-                    if error != "":
-                        response = dict(
-                            jsonrpc="2.0",
-                            error=dict(
-                                code=-32600, message="Invalid Request", data=error
-                            ),
-                        )
-                        await ws.send_json(response)
-                        continue
-                    yield message
+                    continue
+                try:
+                    checkup(message)
+                except JsonRpcRequestException as e:
+                    response = dict(
+                        jsonrpc="2.0",
+                        error=dict(code=-32600, message="Invalid Request", data=str(e)),
+                    )
+                    await ws.send_json(response)
+                    continue
+                yield message
             elif msg.type == aiohttp.WSMsgType.ERROR:
                 print(
                     "ws connection closed with exception %s" % ws.exception(),
