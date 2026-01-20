@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+"""
+Neutral websocket client.
+
+    ./client.py http://0.0.0.0:8080/rpc
+
+ * Connect to the websocket url.
+ * Use the prompt (the line beginning with a "->") for sending data
+ * Responses are lines
+"""
+
 import aiohttp
 import asyncio
 import aioconsole
@@ -23,9 +34,14 @@ async def main(url: str):
     client = Client()
     await client.connect(url)
     t = asyncio.create_task(client.loop())
-    while True:
-        line = await aioconsole.ainput("->")
-        await client.send(line)
+    try:
+        while True:
+            line = await aioconsole.ainput("-> ")
+            await client.send(line)
+    except RuntimeError:
+        pass
+    finally:
+        t.cancel()
 
 
 if __name__ == "__main__":
