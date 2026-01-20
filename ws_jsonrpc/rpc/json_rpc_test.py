@@ -1,48 +1,6 @@
-from .json_rpc import Dispatcher, jsonrpc_wrapper, JsonRpcDispatcher
+from .json_rpc import jsonrpc_wrapper
 import pytest
 from typing import Callable
-
-
-@pytest.mark.asyncio
-async def testDispatcher():
-    async def _test(name: str):
-        return f"hello {name}"
-
-    d = Dispatcher()
-    d.register("test", _test)
-    assert await d["test"]("World") == "hello World"
-
-
-@pytest.mark.asyncio
-async def testNamespace():
-    async def _hello(name: str):
-        return f"Hello {name}"
-
-    async def _add(a: int, b: int) -> int:
-        return a + b
-
-    def _broadcast(method: str) -> Callable:
-        if method == "add":
-            return _add
-        raise Exception("mehhh")
-
-    d = Dispatcher()
-    d.register("hello", _hello)
-    d.register_namespace("broadcast", _broadcast)
-    assert await d["broadcast.add"](41, 1) == 42
-    assert await d["hello"]("Monde") == "Hello Monde"
-
-
-@pytest.mark.asyncio
-async def testJsonRpcDispatcher():
-    async def _test(name: str):
-        return f"hello {name}"
-
-    d = JsonRpcDispatcher()
-    d.register("test", _test)
-    a = await d["test"](dict(jsonrpc="2.0", id=1, params=["World"], method="_test"))
-    assert a["result"] == "hello World"
-    assert a["id"] == 1
 
 
 @pytest.mark.asyncio

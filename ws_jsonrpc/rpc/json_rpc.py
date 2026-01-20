@@ -1,39 +1,4 @@
-from typing import Callable, Any, Coroutine
-
-
-class Dispatcher:
-    """Find a method by its name"""
-
-    def __init__(self):
-        self.methods = dict[str, Callable]()
-        self.namespaces = dict[str, Callable]()
-
-    def register(self, key: str, action: Callable) -> None:
-        self.methods[key] = action
-
-    def register_namespace(self, ns: str, action: Callable) -> None:
-        self.namespaces[ns] = action
-
-    def __getitem__(self, key: str) -> Callable:
-        """Get a jsonrpc wrapped method."""
-        slugs = key.split(".")
-        ns = slugs[0]
-        m: None | Callable = self.methods.get(key)
-        if m is not None:
-            return m
-        n: None | Callable = self.namespaces.get(ns)
-        if n is not None:
-            return n(slugs[1])
-        else:
-            raise Exception(f"{key} is not a method or part of a namespace")
-
-
-class JsonRpcDispatcher(Dispatcher):
-    def register(self, key: str, action: Callable) -> None:
-        return super().register(key, jsonrpc_wrapper(action))
-
-    def __call__(self, request: dict[str, Any]) -> Coroutine:
-        return self[request["method"]](request)
+from typing import Callable, Any
 
 
 class RPCException(Exception):
