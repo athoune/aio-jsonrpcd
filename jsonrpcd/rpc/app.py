@@ -128,9 +128,11 @@ class Room(Store):
     def app(self):
         return self._app
 
-    async def broadcast(self, message: dict[str, Any]):
+    async def broadcast(self, message: dict[str, Any], but: str | None = None):
         assert message.get("id") is None  # it's an event
         for user in self._users.values():
+            if user.login == but:
+                continue
             for session in user.sessions:
                 await session.send_message(message)
 
