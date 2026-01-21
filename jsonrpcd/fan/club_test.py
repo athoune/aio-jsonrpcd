@@ -1,6 +1,7 @@
 import jwt
 import pytest
-from ..rpc.app import Request, Room, App, User, Session, anonymous
+
+from ..rpc.app import App, Request, Room, Session, User, anonymous
 from ..rpc.app_test import OutTest
 from .club import Club
 

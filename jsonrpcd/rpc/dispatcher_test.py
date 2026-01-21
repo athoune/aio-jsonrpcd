@@ -1,8 +1,10 @@
-from .dispatcher import Dispatcher
-from typing import Any, Callable, Awaitable, cast, List
-from .app import Request, App, Session
+from typing import Any, Awaitable, Callable, List, cast
+
 import pytest
+
+from .app import App, Request, Session
 from .app_test import OutTest
+from .dispatcher import Dispatcher
 
 
 @pytest.mark.asyncio

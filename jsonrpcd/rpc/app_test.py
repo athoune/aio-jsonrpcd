@@ -1,6 +1,8 @@
+from typing import Any, cast
+
 import pytest
-from typing import cast, Any
-from .app import User, App, Request, Session, anonymous, Bounced, Room
+
+from .app import App, Bounced, Request, Room, Session, User, anonymous
 
 
 class OutTest:

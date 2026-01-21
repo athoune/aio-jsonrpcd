@@ -1,8 +1,8 @@
-from typing import cast, Any
+from typing import Any, cast
 
 import jwt
 
-from ..rpc.app import Request, Room, App, User
+from ..rpc.app import App, Request, Room, User
 
 
 class Club:

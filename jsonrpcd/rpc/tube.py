@@ -1,5 +1,5 @@
+from asyncio import Future, Queue, Task, create_task
 from typing import Coroutine
-from asyncio import Queue, create_task, Future, Task
 
 
 class Tube:

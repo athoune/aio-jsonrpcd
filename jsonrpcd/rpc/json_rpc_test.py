@@ -1,6 +1,8 @@
-from .json_rpc import jsonrpc_wrapper
-import pytest
 from typing import Callable
+
+import pytest
+
+from .json_rpc import jsonrpc_wrapper
 
 
 @pytest.mark.asyncio

@@ -1,14 +1,15 @@
-from jsonrpcd.rpc.app_test import OutTest
-from typing import cast, Any
+import asyncio
 import json
+from typing import Any, cast
 
 import pytest
-from aiohttp import web, WSMsgType
-import asyncio
+from aiohttp import WSMsgType, web
 from aiohttp._websocket.models import WSMessage
 
+from jsonrpcd.rpc.app_test import OutTest
+
+from ..rpc.app import App, Bounced, Request, Session, anonymous
 from .web import JsonRpcWebHandler
-from ..rpc.app import Bounced, App, Request, anonymous, Session
 
 
 class WebsocketMockup:

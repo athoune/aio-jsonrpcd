@@ -1,5 +1,5 @@
-from typing import Any, Callable, Awaitable, AsyncGenerator, MutableMapping
 import json
+from typing import Any, AsyncGenerator, Awaitable, Callable, MutableMapping
 
 from .dispatcher import Dispatcher
 

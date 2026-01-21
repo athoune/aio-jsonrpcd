@@ -1,8 +1,10 @@
+from asyncio import Event, sleep
 from typing import Coroutine
+
 import pytest
+
 from .json_rpc import jsonrpc_wrapper
-from .tube import Tube, AutoTube
-from asyncio import sleep, Event
+from .tube import AutoTube, Tube
 
 
 async def _add(a: int, b: int, wait=0) -> int:
