@@ -216,8 +216,11 @@ class Request:
             message.get("params", []),
         )
 
-    def json(self) -> str:
-        return json.dumps(dict(id=self.id_, method=self.method, params=self.params))
+    def as_dict(self) -> dict[str, Any]:
+        return dict(id=self.id_, method=self.method, params=self.params)
+
+    def as_json(self) -> str:
+        return json.dumps(self.as_dict())
 
     @property
     def session(self) -> Session:
