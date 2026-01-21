@@ -123,16 +123,23 @@ class JsonRpcWebHandler:
 
     _app: App
 
-    def __init__(self, app=App):
-        self.app: App = app
+    def __init__(self, app=App, init: None | Callable = None):
+        """Init async function is called in the websocket connection step.
+        It is used to add information to the session."""
+        self._app: App = app
+        self._init = init
 
     async def __call__(self, request: web.Request) -> web.Response:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
-        await self._json_rpc_loop(ws)
+        session = Session(ws.send_json)
+        session["http-request"] = request
+        if self._init is not None:
+            await self._init(session)
+        await self._json_rpc_loop(session, ws)
         return cast(web.Response, ws)
 
-    async def _json_rpc_loop(self, ws: web.WebSocketResponse) -> None:
+    async def _json_rpc_loop(self, session: Session, ws: web.WebSocketResponse) -> None:
         # No HTTP in this context, just a websocket
         jsonrpc_session = JsonRpcSession(self._app, session, ws)
 
