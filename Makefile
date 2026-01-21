@@ -1,2 +1,5 @@
 test:
-	poetry run pytest --cov src/websocket-events
+	poetry run pytest --cov jsonrpcd
+
+.venv:
+	poetry install
