@@ -6,7 +6,7 @@
 
 Server:
 
-    python -m ws_jsonrpc.rpc.hello
+    python -m jsonrpcd.ws.hello
 
 Client:
 

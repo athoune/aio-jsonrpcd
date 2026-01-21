@@ -1,6 +1,6 @@
 from aiohttp import web
 
-from .app import App as WsApp, Request, anonymous
+from ..rpc.app import App as WsApp, Request, anonymous
 from .web import JsonRpcWebHandler
 
 
