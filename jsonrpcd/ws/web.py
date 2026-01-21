@@ -1,13 +1,13 @@
+from typing import cast, Any, AsyncGenerator, Callable
+
 from aiohttp.web import WebSocketResponse
 from aiohttp import web
 import aiohttp
-from typing import cast, Any, AsyncGenerator, Callable
 
-from ws_jsonrpc.rpc.json_rpc import checkup, JsonRpcRequestException
-
-from .tube import AutoTube
-from .app import App, Session
-from .dispatcher import MethodNotFoundException
+from ..rpc.json_rpc import checkup, JsonRpcRequestException
+from ..rpc.tube import AutoTube
+from ..rpc.app import App, Session
+from ..rpc.dispatcher import MethodNotFoundException
 
 
 async def websocketJsonRpcIterator(

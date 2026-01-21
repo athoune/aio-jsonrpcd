@@ -1,11 +1,14 @@
+from jsonrpcd.rpc.app_test import OutTest
 from typing import cast, Any
+import json
+
 import pytest
 from aiohttp import web, WSMsgType
 import asyncio
 from aiohttp._websocket.models import WSMessage
-import json
+
 from .web import JsonRpcWebHandler
-from .app import Bounced, App, Request, anonymous
+from ..rpc.app import Bounced, App, Request, anonymous, Session
 
 
 class WebsocketMockup:
@@ -94,16 +97,22 @@ def app():
 @pytest.mark.asyncio
 async def testBadJson(app: App):
     web_handler = JsonRpcWebHandler(app)
+    out = OutTest()
+    session = Session(out)
     ws = WebsocketMockup()
-    t = asyncio.create_task(web_handler._json_rpc_loop(cast(web.WebSocketResponse, ws)))
+    t = asyncio.create_task(
+        web_handler._json_rpc_loop(session, cast(web.WebSocketResponse, ws))
+    )
 
     # The JSON is malformed
-    await ws.put("""{
+    await ws.put(
+        """{
         "jsonrpc":"2.0",
         "method":"hello",
         "id": 1,
         "params": ["world"
-        }""")
+        }"""
+    )
     debug = ws.dump()
     print(debug)
     resp: dict[str, Any] = json.loads(await ws._responses.get())
@@ -116,8 +125,12 @@ async def testBadJson(app: App):
 @pytest.mark.asyncio
 async def testBadMethod(app: App):
     web_handler = JsonRpcWebHandler(app)
+    out = OutTest()
+    session = Session(out)
     ws = WebsocketMockup()
-    t = asyncio.create_task(web_handler._json_rpc_loop(cast(web.WebSocketResponse, ws)))
+    t = asyncio.create_task(
+        web_handler._json_rpc_loop(session, cast(web.WebSocketResponse, ws))
+    )
 
     await ws.put(
         """{
@@ -142,8 +155,12 @@ async def testAuthenticate(app: App):
         # some auth
         request.session.authenticated = True
 
+    out = OutTest()
+    session = Session(out)
     ws = WebsocketMockup()
-    t = asyncio.create_task(web_handler._json_rpc_loop(cast(web.WebSocketResponse, ws)))
+    t = asyncio.create_task(
+        web_handler._json_rpc_loop(session, cast(web.WebSocketResponse, ws))
+    )
 
     await ws.put(
         """{
@@ -156,12 +173,14 @@ async def testAuthenticate(app: App):
 
     assert resp["result"] is None
 
-    await ws.put("""{
+    await ws.put(
+        """{
         "jsonrpc":"2.0",
         "method":"hello",
         "id": 1,
         "params": ["world"]
-        }""")
+        }"""
+    )
     resp: dict[str, Any] = json.loads(await ws._responses.get())
     print(resp)
     assert resp["result"] == "Hello world"
