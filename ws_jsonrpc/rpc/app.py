@@ -1,4 +1,5 @@
 from typing import Any, Callable, Awaitable, AsyncGenerator, MutableMapping
+import json
 
 from .dispatcher import Dispatcher
 
@@ -13,8 +14,6 @@ class Bounced(Exception):
 
 
 class Store(MutableMapping[str, Any]):
-    pass
-
     def __init__(self) -> None:
         super().__init__()
         self._store = dict[str, Any]()
@@ -71,7 +70,7 @@ class Session(Store):
     def authenticate(self):
         self.authenticated = True
 
-    async def send_message(self, message: dict[str, Any]):
+    async def send_message(self, message: "Request"):
         """
         Write a message to the wire, something like a websocket.
         Used when sending events to the client."""
@@ -119,10 +118,11 @@ class Room(Store):
     def app(self):
         return self._app
 
-    async def broadcast(self, msg: dict[str, Any]):
+    async def broadcast(self, request: "Request"):
+        assert request.id_ is None  # it's an event
         for user in self._users.values():
             for session in user.sessions:
-                await session.send_message(msg)
+                await session.send_message(request)
 
 
 class App(Store):
@@ -187,6 +187,9 @@ class Request:
         self.method = method
         self.params = params
         self._anonymous = False
+
+    def json(self) -> str:
+        return json.dumps(dict(id=self.id_, method=self.method, params=self.params))
 
     @property
     def session(self) -> Session:
