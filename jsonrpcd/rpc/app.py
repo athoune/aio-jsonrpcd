@@ -58,6 +58,7 @@ class Session(Store):
         else:
             self.user = user
         self._out = message_out
+        self._room = None
 
     @property
     def user(self) -> "User | None":
@@ -113,8 +114,11 @@ class Room(Store):
         self._app = app
         self._users = dict[str, User]()
 
-    def adduser(self, user: User):
+    def adduser(self, user: User, session: Session | None = None):
         self._users[user.login] = user
+        self._app._users[user.login] = user
+        if session is not None:
+            session._room = self
 
     @property
     def users(self) -> dict[str, User]:
