@@ -31,6 +31,9 @@ class Club:
         request.session.user = user
         request.session.authenticate()
 
+    async def all(self, request: Request):
+        await request.session.room.broadcast(request.as_dict(), but=request.user.login)
+
 
 async def event(request: Request):
     "Send an event to everyone on the room"
