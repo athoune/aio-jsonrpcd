@@ -1,7 +1,7 @@
 from aiohttp.web import WebSocketResponse
 from aiohttp import web
 import aiohttp
-from typing import cast, Any, AsyncGenerator
+from typing import cast, Any, AsyncGenerator, Callable
 
 from ws_jsonrpc.rpc.json_rpc import checkup, JsonRpcRequestException
 
@@ -121,7 +121,7 @@ class JsonRpcSession:
 class JsonRpcWebHandler:
     """aiohttp web handler managing the websocket connection."""
 
-    app: App
+    _app: App
 
     def __init__(self, app=App):
         self.app: App = app
@@ -134,8 +134,7 @@ class JsonRpcWebHandler:
 
     async def _json_rpc_loop(self, ws: web.WebSocketResponse) -> None:
         # No HTTP in this context, just a websocket
-        session = Session(ws.send_json)
-        jsonrpc_session = JsonRpcSession(self.app, session, ws)
+        jsonrpc_session = JsonRpcSession(self._app, session, ws)
 
         _tube = AutoTube()
 
