@@ -1,5 +1,5 @@
 [project]
-name = "aio-jsonrpcd"
+name = "jsonrpcd"
 version = "0.1.0"
 description = ""
 authors = [
