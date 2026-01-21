@@ -44,6 +44,7 @@ class Session(Store):
     _user: "User | None"
     authenticated: bool
     _out: MessageOut
+    _room: "Room | None"
 
     def __init__(
         self,
@@ -66,6 +67,10 @@ class Session(Store):
     def user(self, usr):
         usr.sessions.add(self)
         self._user = usr
+
+    @property
+    def room(self) -> "Room":
+        return self._room
 
     def authenticate(self):
         self.authenticated = True
@@ -126,6 +131,10 @@ class Room(Store):
 
 
 class App(Store):
+    """json-rpc application, the top of the hierarchy.
+    App has Users and registered Methods.
+    """
+
     _handlers: Dispatcher[Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]]
     _users: dict[str, User]
 
