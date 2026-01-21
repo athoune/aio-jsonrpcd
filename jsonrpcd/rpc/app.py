@@ -189,14 +189,26 @@ class Request:
         self,
         app: App,
         session: Session,
+        id_: Any,
         method: str,
         params: dict[str, Any] | list[Any],
     ) -> None:
         self._app = app
         self._session = session
+        self.id_ = id_
         self.method = method
         self.params = params
         self._anonymous = False
+
+    @staticmethod
+    def from_json(app: App, session: Session, message: dict[str, Any]) -> "Request":
+        return Request(
+            app,
+            session,
+            message.get("id"),
+            message["method"],
+            message.get("params", []),
+        )
 
     def json(self) -> str:
         return json.dumps(dict(id=self.id_, method=self.method, params=self.params))
