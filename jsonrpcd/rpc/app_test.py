@@ -112,7 +112,7 @@ async def testAnonymous():
         tests.append(1)
 
     app = App()
-    request = Request(app, session, "", dict())
+    request = Request.from_json(app, session, dict(method="whatever"))
     assert not request._anonymous
 
     await _ano(request)

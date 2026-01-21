@@ -24,7 +24,14 @@ async def test_dispatcher():
     d.put_namespace("test", _ns)
 
     assert (
-        await d["test.plop"](Request(app, session, "test.plop", ["beuha"]))
+        await d["test.plop"](
+            Request.from_json(app, session, dict(method="test.plop", params=["beuha"]))
+        )
         == "My namespace is test with method plop"
     )
-    assert await d["hello"](Request(app, session, "hello", ["World"])) == "Hello World"
+    assert (
+        await d["hello"](
+            Request.from_json(app, session, dict(method="hello", params=["World"]))
+        )
+        == "Hello World"
+    )

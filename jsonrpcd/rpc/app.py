@@ -70,12 +70,13 @@ class Session(Store):
 
     @property
     def room(self) -> "Room":
+        assert self._room is not None
         return self._room
 
     def authenticate(self):
         self.authenticated = True
 
-    async def send_message(self, message: "Request"):
+    async def send_message(self, message: dict[str, Any]):
         """
         Write a message to the wire, something like a websocket.
         Used when sending events to the client."""
@@ -123,11 +124,11 @@ class Room(Store):
     def app(self):
         return self._app
 
-    async def broadcast(self, request: "Request"):
-        assert request.id_ is None  # it's an event
+    async def broadcast(self, message: dict[str, Any]):
+        assert message.get("id") is None  # it's an event
         for user in self._users.values():
             for session in user.sessions:
-                await session.send_message(request)
+                await session.send_message(message)
 
 
 class App(Store):
@@ -166,7 +167,7 @@ class App(Store):
         return decorator
 
     async def _handle(self, session: Session, rpc_request: dict[str, Any]) -> Any:
-        request = Request(self, session, rpc_request["method"], rpc_request["params"])
+        request = Request.from_json(self, session, rpc_request)
         method = self._handlers[request.method]
         if (
             "_anonymously" not in method.__qualname__
