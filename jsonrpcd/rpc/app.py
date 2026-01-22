@@ -147,11 +147,17 @@ class Room(Store):
 
     async def broadcast(self, message: dict[str, Any], but: str | None = None):
         assert message.get("id") is None  # it's an event
+        users = set[str]()
         for user in self._users.values():
             if user.login == but:
                 continue
+            users.add(user.login)
             for session in user.sessions:
                 await session.send_message(message)
+        logger.info(f"Broadcast '{message['method']}' to {', '.join(users)}")
+
+    def __len__(self) -> int:
+        return len(self._users)
 
 
 class App(Store):

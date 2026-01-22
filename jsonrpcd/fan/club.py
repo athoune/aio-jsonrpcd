@@ -1,8 +1,12 @@
 from typing import Any, cast
+import logging
 
 import jwt
 
-from ..rpc.app import App, Request, Room, User
+from ..rpc.app import App, Request, Room, User, Session
+
+
+logger = logging.getLogger(__name__)
 
 
 class Club:
@@ -30,6 +34,8 @@ class Club:
         room.adduser(user, request.session)
         request.session.user = user
         request.session.authenticate()
+        logger.info(f"authenticate: {user.login}")
+        logger.info(f"room '{room_name}' has {len(room)} users.")
 
 
 def close_session(session: Session):
