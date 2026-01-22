@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fireworks demo</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎆</text></svg>"
+    />
+    <!-- UNPKG -->
+    <script src="https://unpkg.com/fireworks-js@2.x/dist/index.umd.js"></script>
+  </head>
+  <body>
+    <div class="fireworks">
+      <h1>Fireworks</h1>
+      <input type="text" name="token" id="token" />
+      <button id="fire">Auth</button>
+    </div>
+    <script>
+      const container = document.querySelector(".fireworks");
+      const fireworks = new Fireworks.default(container, { explosion: 1 });
+      //fireworks.start();
+
+      const socket = new WebSocket(`ws://${window.location.host}/rpc`);
+      // On écoute les éventuelles erreurs
+      socket.addEventListener("error", (event) => {
+        console.log("Erreur WebSocket : ", event);
+      });
+      socket.addEventListener("close", (event) => {
+        console.log("La connexion a été fermée avec succès.");
+      });
+      socket.addEventListener("open", (event) => {
+        //socket.send("Coucou le serveur !");
+        console.log("Connected");
+      });
+      socket.addEventListener("message", (event) => {
+        console.log("receive:", event.data);
+        const req = JSON.parse(event.data);
+        console.log(req);
+        if (req.method == "all.fireworks") {
+          fireworks.start();
+        }
+      });
+
+      let state = "auth";
+
+      document.querySelector("#fire").onclick = (event) => {
+        console.log("Click");
+        let message = null;
+        if (state == "auth") {
+          message = JSON.stringify({
+            jsonrpc: "2.0",
+            method: "authenticate",
+            id: 1,
+            params: {
+              room: "secret_room",
+              token: document.querySelector("#token").value,
+            },
+          });
+          state = "fire";
+          document.querySelector("#fire").firstChild.data = "Fire !";
+        } else {
+          message = JSON.stringify({
+            jsonrpc: "2.0",
+            method: "all.fireworks",
+            params: ["red"],
+          });
+        }
+        console.log("send:", message);
+        socket.send(message);
+      };
+    </script>
+  </body>
+</html>

@@ -14,3 +14,7 @@ The client is almost interactive, you have to write your message, a JSON, in thi
 
     python client.py http://0.0.0.0:8080/rpc
     -> {"method":"hello","id":42, "jsonrpc":"2.0", "params":["bob"]}
+
+## Demo time
+
+An HTML demo is in the `contrib/fireworks` folder.
