@@ -21,4 +21,9 @@ if __name__ == "__main__":
             login, room, key = sys.argv[1:]
         else:
             (login, room) = sys.argv[1:]
-        print(encode(login, room, key))
+        token = encode(login, room, key)
+        print(f"""login: {login}
+room: {room}
+token:
+{token}
+""")
