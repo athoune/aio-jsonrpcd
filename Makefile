@@ -3,3 +3,6 @@ test:
 
 .venv:
 	poetry install
+
+hello: .venv
+	poetry run python -m jsonrpcd.ws.hello
