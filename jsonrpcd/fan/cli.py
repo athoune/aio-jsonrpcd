@@ -7,9 +7,18 @@ def encode(login: str, room: str, key: str) -> str:
 
 if __name__ == "__main__":
     import sys
+    import os
 
-    if len(sys.argv) != 4:
+    size = 4
+    key = os.getenv("FAN_KEY")
+    if key is not None:
+        size = 3
+
+    if len(sys.argv) != size:
         print("Error:\npython -m jsonrpcd.fan.cli login room key")
     else:
-        login, room, key = sys.argv[1:]
+        if key is None:
+            login, room, key = sys.argv[1:]
+        else:
+            (login, room) = sys.argv[1:]
         print(encode(login, room, key))
