@@ -1,4 +1,7 @@
 from typing import Any, AsyncGenerator, Callable, cast
+import logging
+import sys
+import traceback
 
 import aiohttp
 from aiohttp import web
@@ -8,6 +11,8 @@ from ..rpc.app import App, Session
 from ..rpc.dispatcher import MethodNotFoundException
 from ..rpc.json_rpc import JsonRpcRequestException, checkup
 from ..rpc.tube import AutoTube
+
+logger = logging.getLogger(__name__)
 
 
 async def websocketJsonRpcIterator(
@@ -94,9 +99,11 @@ class JsonRpcSession:
             )
             await self.ws.send_json(response)
         except Exception as e:
+            logger.info("method error", extra=dict(stack=sys.exc_info()))
             # Lots of exception can be caught here
             # it can be hard to debug without stack trace.
-            print("json rpc session error:", e)
+            print("json rpc session error:", e, sys.exc_info())
+            traceback.print_exception(e)
             if id_ is None:
                 """…the Client would not be aware of any errors
                 (like e.g. "Invalid params","Internal error")

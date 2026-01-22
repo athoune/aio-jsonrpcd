@@ -1,10 +1,13 @@
 import json
+import logging
 from typing import Any, AsyncGenerator, Awaitable, Callable, MutableMapping
 
 from .dispatcher import Dispatcher
 
 MessageIn = AsyncGenerator[dict[str, Any], None]
 MessageOut = Callable[[dict[str, Any]], Awaitable[None]]
+
+logger = logging.getLogger(__name__)
 
 
 class Bounced(Exception):
@@ -180,6 +183,10 @@ class App(Store):
             and not request.session.authenticated
         ):  # FIXME introspection seems ugly
             raise Bounced(f"'{request.method}' method needs authentication")
+        logger.info(
+            f"method call: {rpc_request['method']}",
+            extra=dict(request=rpc_request, session=session),
+        )
         return await method(request)
 
 
