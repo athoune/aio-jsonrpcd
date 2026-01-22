@@ -87,6 +87,8 @@ class JsonRpcSession:
         """Execute a request.
         The execution is detached, and return nothing.
         The call receive a Request and answer with a Response, through the websocket."""
+        # FIXME jsonrpc exception handling is not specific to websocket transport.
+        # It must be handled in the rpc module.
         id_ = message.get("id")
         result: Any
         try:
