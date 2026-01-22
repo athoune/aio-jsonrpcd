@@ -86,6 +86,11 @@ class Session(Store):
         Used when sending events to the client."""
         await self._out(message)
 
+    def close(self):
+        self.user.close_session(self)
+        self.authenticated = False
+        logger.info(f"session closed: {self.user.login}")
+
 
 class User(Store):
     _room: "Room"
@@ -107,6 +112,13 @@ class User(Store):
     def room(self) -> "Room":
         return self._room
 
+    def close_session(self, session: Session):
+        self.sessions.remove(session)
+        if len(self.sessions) == 0:
+            # user leaves the room
+            del self._room.users[self.login]
+            logger.info(f"User {self.login} leaves the room")
+
 
 class Room(Store):
     _app: "App"
@@ -122,6 +134,8 @@ class Room(Store):
         self._app._users[user.login] = user
         if session is not None:
             session._room = self
+        user._room = self
+        logger.info(f"User {user.login} added to the room")
 
     @property
     def users(self) -> dict[str, User]:

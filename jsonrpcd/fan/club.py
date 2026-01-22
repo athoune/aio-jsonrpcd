@@ -32,5 +32,9 @@ class Club:
         request.session.authenticate()
 
 
+def close_session(session: Session):
+    session.close()
+
+
 async def all(request: Request):
     await request.session.room.broadcast(request.as_dict(), but=request.user.login)

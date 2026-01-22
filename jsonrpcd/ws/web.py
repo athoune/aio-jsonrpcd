@@ -132,11 +132,14 @@ class JsonRpcWebHandler:
 
     _app: App
 
-    def __init__(self, app=App, init: None | Callable = None):
+    def __init__(
+        self, app=App, init: None | Callable = None, on_close: None | Callable = None
+    ):
         """Init async function is called in the websocket connection step.
         It is used to add information to the session."""
         self._app: App = app
         self._init = init
+        self._on_close = on_close
 
     async def __call__(self, request: web.Request) -> web.Response:
         ws = web.WebSocketResponse()
@@ -162,3 +165,5 @@ class JsonRpcWebHandler:
             else:
                 raise Exception(f"strange message : {message}")
         await ws.close()
+        if self._on_close is not None:
+            self._on_close(session)
