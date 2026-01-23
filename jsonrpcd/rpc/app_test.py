@@ -2,7 +2,7 @@ from typing import Any, cast
 
 import pytest
 
-from .app import App, Bounced, Request, Room, Session, User, _anonymous
+from .app import App, Request, Room, Session, User, _anonymous
 
 
 class OutTest:
@@ -66,8 +66,10 @@ async def testApp():
     out = OutTest()
     session = Session(out)
 
-    with pytest.raises(Bounced):
-        await app._handle(session, dict(method="hello", params=["World"]))
+    await app._handle(session, dict(id=0, method="hello", params=["World"]))
+    resp = out.messages.pop()
+    assert "error" in resp
+    assert "needs authentication" in resp["error"]["message"]
 
     @app.handler("authenticate", public=True)
     async def _authenticate(request: Request) -> None:
@@ -78,10 +80,13 @@ async def testApp():
         session.user = user
 
     await app._handle(
-        session, dict(method="authenticate", params=["alice", "some token"])
+        session, dict(id=1, method="authenticate", params=["alice", "some token"])
     )
-    resp = await app._handle(session, dict(method="hello", params=["World"]))
-    assert resp == "Hello World"
+    resp = out.messages.pop()
+    assert resp["result"] is None
+    await app._handle(session, dict(id=2, method="hello", params=["World"]))
+    resp = out.messages.pop()
+    assert resp["result"] == "Hello World"
 
 
 @pytest.mark.asyncio
@@ -96,8 +101,9 @@ async def testNamespace():
         ns, method = request.method.split(".")
         return f"ns: {ns} method:{method}"
 
-    resp = await app._handle(session, dict(method="test.hello", params=["World"]))
-    assert resp == "ns: test method:hello"
+    await app._handle(session, dict(id=42, method="test.hello", params=["World"]))
+    resp = out.messages[0]
+    assert resp["result"] == "ns: test method:hello"
 
 
 @pytest.mark.asyncio
@@ -111,8 +117,9 @@ async def testFunction():
     async def _function(name: str) -> str:
         return f"Hello {name}"
 
-    resp = await app._handle(session, dict(method="hello", params=["World"]))
-    assert resp == "Hello World"
+    await app._handle(session, dict(id=42, method="hello", params=["World"]))
+    resp = out.messages[0]
+    assert resp["result"] == "Hello World"
 
 
 @pytest.mark.asyncio
@@ -132,3 +139,20 @@ async def testAnonymous():
     assert request._anonymous
 
     assert len(tests)
+
+
+@pytest.mark.asyncio
+async def testBadMethod():
+    out = OutTest()
+    session = Session(out)
+    app = App()
+    message = {
+        "jsonrpc": "2.0",
+        "method": "authenticate",
+        "id": 1,
+        "params": ["Bob", "Sinclar"],
+    }
+    await app._handle(session, message)
+    resp = out.messages[0]
+    assert "error" in resp
+    assert resp["error"]["message"] == "Method not found"

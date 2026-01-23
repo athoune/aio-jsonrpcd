@@ -5,6 +5,7 @@ class RPCException(Exception):
     pass
 
 
+# [FIXME] deprecated, see .app.App.function
 def jsonrpc_wrapper(raw: Callable) -> Callable:
     """
     Transform a plain old async function to a function with a

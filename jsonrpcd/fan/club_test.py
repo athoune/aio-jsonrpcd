@@ -29,11 +29,12 @@ async def testClub():
         session = Session(out)
         sessions[name] = session
 
-        resp = await app._handle(
+        await app._handle(
             session,
             dict(method="authenticate", id=17, params=dict(room="harry", token=token)),
         )
-        assert resp is None
+        resp = out.messages.pop()
+        assert resp["result"] is None
 
         assert name in app._users
         user = session.user

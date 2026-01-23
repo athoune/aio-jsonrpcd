@@ -1,14 +1,11 @@
 from typing import Any, AsyncGenerator, Callable, cast
 import logging
-import sys
-import traceback
 
 import aiohttp
 from aiohttp import web
 from aiohttp.web import WebSocketResponse
 
 from ..rpc.app import App, Session
-from ..rpc.dispatcher import MethodNotFoundException
 from ..rpc.json_rpc import JsonRpcRequestException, checkup
 from ..rpc.tube import AutoTube
 
@@ -92,42 +89,7 @@ class JsonRpcSession:
         The call receive a Request and answer with a Response, through the websocket."""
         # FIXME jsonrpc exception handling is not specific to websocket transport.
         # It must be handled in the rpc module.
-        id_ = message.get("id")
-        result: Any
-        try:
-            result = await self.app._handle(self.session, message)
-        except MethodNotFoundException as e:
-            response = dict(
-                id=id_,
-                jsonrpc=message["jsonrpc"],
-                error=dict(code=-32601, message="Method not found", data=str(e)),
-            )
-            await self.ws.send_json(response)
-        except Exception as e:
-            logger.info("method error", extra=dict(stack=sys.exc_info()))
-            # Lots of exception can be caught here
-            # it can be hard to debug without stack trace.
-            print("json rpc session error:", e, sys.exc_info())
-            traceback.print_exception(e)
-            if id_ is None:
-                """…the Client would not be aware of any errors
-                (like e.g. "Invalid params","Internal error")
-                """
-                print(f"jsonrpcsession error : {e}")
-                # the client have to read logs to discover th exception
-            else:
-                response = dict(
-                    id=id_,
-                    jsonrpc=message["jsonrpc"],
-                    error=dict(code=-32000, message=str(e)),
-                )
-                await self.ws.send_json(response)
-        else:
-            if id_ is not None:
-                response = dict(id=id_, result=result, jsonrpc=message["jsonrpc"])
-                await self.ws.send_json(response)
-            elif result is not None:
-                pass  # [FIXME] notification returns nothing
+        await self.app._handle(self.session, message)
 
 
 class JsonRpcWebHandler:

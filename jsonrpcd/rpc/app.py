@@ -1,8 +1,10 @@
 import json
 import logging
 from typing import Any, AsyncGenerator, Awaitable, Callable, MutableMapping
+import traceback
+import sys
 
-from .dispatcher import Dispatcher
+from .dispatcher import Dispatcher, MethodNotFoundException
 
 MessageIn = AsyncGenerator[dict[str, Any], None]
 MessageOut = Callable[[dict[str, Any]], Awaitable[None]]
@@ -230,19 +232,53 @@ class App(Store):
 
         return handler
 
-    async def _handle(self, session: Session, rpc_request: dict[str, Any]) -> Any:
+    async def _handle(self, session: Session, rpc_request: dict[str, Any]) -> None:
         request: Request = Request.from_json(self, session, rpc_request)
-        method: Callable[[Request], Awaitable[Any]] = self._handlers[request.method]
-        if (
-            "_anonymously" not in method.__qualname__  # type: ignore [FIXME] function has a __qualname__, what about hand crafted __call__ ?
-            and not request.session.authenticated
-        ):  # FIXME introspection seems ugly
-            raise Bounced(f"'{request.method}' method needs authentication")
-        logger.info(
-            f"method call: {rpc_request['method']}",
-            extra=dict(request=rpc_request, session=session),
-        )
-        return await method(request)
+        try:
+            method: Callable[[Request], Awaitable[Any]] = self._handlers[request.method]
+            if (
+                "_anonymously" not in method.__qualname__  # type: ignore [FIXME] function has a __qualname__, what about hand crafted __call__ ?
+                and not request.session.authenticated
+            ):  # FIXME introspection seems ugly
+                raise Bounced(f"'{request.method}' method needs authentication")
+            logger.info(
+                f"method call: {rpc_request['method']}",
+                extra=dict(request=rpc_request, session=session),
+            )
+            result: Any
+            result = await method(request)
+        except MethodNotFoundException as e:
+            response = dict(
+                id=request.id_,
+                jsonrpc=request.jsonrpc,
+                error=dict(code=-32601, message="Method not found", data=str(e)),
+            )
+            await session._out(response)
+        except Exception as e:
+            logger.info("method error", extra=dict(stack=sys.exc_info()))
+            # Lots of exception can be caught here
+            # it can be hard to debug without stack trace.
+            print("json rpc session error:", e, sys.exc_info())
+            traceback.print_exception(e)
+            if request.id_ is None:
+                """…the Client would not be aware of any errors
+                (like e.g. "Invalid params","Internal error")
+                """
+                print(f"jsonrpcsession error : {e}")
+                # the client have to read logs to discover th exception
+            else:
+                response = dict(
+                    id=request.id_,
+                    jsonrpc=request.jsonrpc,
+                    error=dict(code=-32000, message=str(e)),
+                )
+                await session._out(response)
+        else:
+            if request.id_ is not None:
+                response = dict(id=request.id_, result=result, jsonrpc=request.jsonrpc)
+                await session._out(response)
+            elif result is not None:
+                pass  # [FIXME] notification returns nothing
 
 
 class Request:
@@ -267,6 +303,7 @@ class Request:
         self.method = method
         self.params = params
         self._anonymous = False
+        self._jsonrpc = "2.0"  # Harcoded, this will never change
 
     @staticmethod
     def from_json(app: App, session: Session, message: dict[str, Any]) -> "Request":
@@ -301,6 +338,10 @@ class Request:
     @property
     def app(self) -> App:
         return self._app
+
+    @property
+    def jsonrpc(self) -> str:
+        return self._jsonrpc
 
 
 def _anonymous(
