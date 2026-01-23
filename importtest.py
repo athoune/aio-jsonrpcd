@@ -11,7 +11,7 @@ def pytest_sessionfinish(session, exitstatus):
     print("""
 
 === Imported external libraries during tests ===
-/!\ With low test coverage, imports done by the code can be miss.
+/!\\ With low test coverage, imports done by the code can be miss.
 """)
     for name in sorted(sys.modules.keys()):
         if name in imported:
