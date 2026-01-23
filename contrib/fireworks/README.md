@@ -1,5 +1,7 @@
 # Fireworks demo
 
+See [fireworks-js](https://github.com/crashmax-dev/fireworks-js/).
+
 ## Install jsronrpcd in its virtual env
 
     poetry install
