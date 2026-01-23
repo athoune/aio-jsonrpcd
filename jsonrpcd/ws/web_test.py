@@ -8,7 +8,7 @@ from aiohttp._websocket.models import WSMessage
 
 from jsonrpcd.rpc.app_test import OutTest
 
-from ..rpc.app import App, Bounced, Request, Session, anonymous
+from ..rpc.app import App, Bounced, Request, Session
 from .web import JsonRpcWebHandler
 
 
@@ -90,7 +90,7 @@ def app():
 
     @_app.handler("hello")
     async def hello(request: Request) -> str:
-        return f"Hello {request.params[0]}"
+        return f"Hello {cast(list[str], request.params)[0]}"
 
     return _app
 
@@ -150,8 +150,7 @@ async def testBadMethod(app: App):
 async def testAuthenticate(app: App):
     web_handler = JsonRpcWebHandler(app)
 
-    @app.handler("authenticate")
-    @anonymous
+    @app.handler("authenticate", public=True)
     async def _authenticate(request: Request):
         # some auth
         request.session.authenticated = True

@@ -2,9 +2,10 @@
 import logging
 import os
 from aiohttp import web
+from typing import cast
 
 from jsonrpcd.rpc.app import App as RpcApp
-from jsonrpcd.rpc.app import Request, anonymous
+from jsonrpcd.rpc.app import Request
 from jsonrpcd.ws.web import JsonRpcWebHandler
 from jsonrpcd.fan.club import Club, all, close_session
 
@@ -13,16 +14,15 @@ logging.basicConfig(level=logging.INFO)
 
 rpc_app = RpcApp()
 club = Club(rpc_app)
-club.register_room("secret_room", os.getenv("FAN_KEY"))
+club.register_room("secret_room", os.getenv("FAN_KEY", ""))
 
 rpc_app.namespace("all")(all)
-rpc_app.handler("authenticate")(anonymous(club.authenticate))
+rpc_app.handler("authenticate", public=True)(club.authenticate)
 
 
-@rpc_app.handler("hello")
-@anonymous
+@rpc_app.handler("hello", public=True)
 async def hello(request: Request) -> str:
-    return f"Hello {request.params[0]}"
+    return f"Hello {cast(list[str], request.params)[0]}"
 
 
 ws_app = JsonRpcWebHandler(rpc_app, on_close=close_session)

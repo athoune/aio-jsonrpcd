@@ -87,9 +87,13 @@ class Session(Store):
         await self._out(message)
 
     def close(self):
+        assert self.user is not None
         self.user.close_session(self)
         self.authenticated = False
         logger.info(f"session closed: {self.user.login}")
+
+    async def unicast(self, message: dict[str, Any]):
+        raise NotImplementedError()
 
 
 class User(Store):
@@ -118,6 +122,11 @@ class User(Store):
             # user leaves the room
             del self._room.users[self.login]
             logger.info(f"User {self.login} leaves the room")
+
+    async def unicast(self, message: dict[str, Any]):
+        for session in self.sessions:
+            # FIXME handle function, not just event
+            await session.unicast(message)
 
 
 class Room(Store):
@@ -165,14 +174,12 @@ class App(Store):
     App has Users and registered Methods.
     """
 
-    _handlers: Dispatcher[Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]]
+    _handlers: Dispatcher[Callable[["Request"], Awaitable[Any]]]
     _users: dict[str, User]
 
     def __init__(self) -> None:
         super().__init__()
-        self._handlers = Dispatcher[
-            Callable[..., Awaitable[tuple["Request", dict[str, Any]]]]
-        ]()
+        self._handlers = Dispatcher[Callable[["Request"], Awaitable[Any]]]()
         self._users = dict()
 
     def add_user(self, user: User):
@@ -181,25 +188,53 @@ class App(Store):
     def find_user(self, login: str) -> User:
         return self._users[login]
 
-    def handler(self, method: str):
+    def handler(self, method: str, public: bool = False):
+        "Decorator appending an handler to the application"
+
         def decorator(
-            function: Callable[..., Awaitable[tuple["Request", dict[str, Any]]]],
-        ):
-            self._handlers.put_handler(method, function)
+            function: Callable[["Request"], Awaitable[Any]],
+        ) -> None:
+            if public:
+                self._handlers.put_handler(method, _anonymous(function))
+            else:
+                self._handlers.put_handler(method, function)
 
         return decorator
 
-    def namespace(self, ns: str):
-        def decorator(function):
-            self._handlers.put_namespace(ns, function)
+    def namespace(self, ns: str, public: bool = False):
+        "Decorator appending an namespace to the application"
+
+        def decorator(function: Callable[["Request"], Awaitable[Any]]) -> None:
+            if public:
+                self._handlers.put_namespace(ns, _anonymous(function))
+            else:
+                self._handlers.put_namespace(ns, function)
 
         return decorator
+
+    def function(self, method: str, public: bool = False):
+        "Decorator appending an namespace to the application"
+
+        def handler(function: Callable):
+            async def _f(request: Request):
+                if isinstance(request.params, dict):
+                    return await function(**request.params)
+                else:
+                    return await function(*request.params)
+
+            if public:
+                self._handlers.put_handler(method, _anonymous(_f))
+            else:
+                self._handlers.put_handler(method, _f)
+            return _f
+
+        return handler
 
     async def _handle(self, session: Session, rpc_request: dict[str, Any]) -> Any:
-        request = Request.from_json(self, session, rpc_request)
-        method = self._handlers[request.method]
+        request: Request = Request.from_json(self, session, rpc_request)
+        method: Callable[[Request], Awaitable[Any]] = self._handlers[request.method]
         if (
-            "_anonymously" not in method.__qualname__
+            "_anonymously" not in method.__qualname__  # type: ignore [FIXME] function has a __qualname__, what about hand crafted __call__ ?
             and not request.session.authenticated
         ):  # FIXME introspection seems ugly
             raise Bounced(f"'{request.method}' method needs authentication")
@@ -268,7 +303,9 @@ class Request:
         return self._app
 
 
-def anonymous(function: Callable) -> Callable:
+def _anonymous(
+    function: Callable[[Request], Awaitable[Any]],
+) -> Callable[[Request], Awaitable[Any]]:
     # It does nothing, just tagging the function
     async def _anonymously(request: Request) -> Any:
         request._anonymous = True

@@ -39,8 +39,11 @@ class Club:
 
 
 def close_session(session: Session):
+    # Callback for jsonrpcd.ws.web.JsonRpcWebHandler
     session.close()
 
 
 async def all(request: Request):
+    # Broadcast handler
+    assert request.user is not None
     await request.session.room.broadcast(request.as_dict(), but=request.user.login)

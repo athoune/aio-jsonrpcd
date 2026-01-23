@@ -46,7 +46,10 @@ async def websocketJsonRpcIterator(
                 print(
                     "ws connection closed with exception %s" % ws.exception(),
                 )
-                raise ws.exception()
+                exception = ws.exception()
+                if exception is not None:
+                    raise exception
+                # [FIXME] what the hell is a None exception ?
             else:
                 raise Exception("Unhandled websocket message type:", msg.type)
     except Exception as e:
@@ -133,7 +136,7 @@ class JsonRpcWebHandler:
     _app: App
 
     def __init__(
-        self, app=App, init: None | Callable = None, on_close: None | Callable = None
+        self, app: App, init: None | Callable = None, on_close: None | Callable = None
     ):
         """Init async function is called in the websocket connection step.
         It is used to add information to the session."""

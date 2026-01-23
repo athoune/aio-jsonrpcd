@@ -2,7 +2,7 @@ from typing import Any, cast
 
 import pytest
 
-from .app import App, Bounced, Request, Room, Session, User, anonymous
+from .app import App, Bounced, Request, Room, Session, User, _anonymous
 
 
 class OutTest:
@@ -32,8 +32,7 @@ def testStore():
 async def testRoom():
     app = App()
 
-    @app.handler("hello")
-    @anonymous
+    @app.handler("hello", public=True)
     async def _hello(request: Request) -> str:
         return f"Hello {cast(list, request.params)[0]}"
 
@@ -70,8 +69,7 @@ async def testApp():
     with pytest.raises(Bounced):
         await app._handle(session, dict(method="hello", params=["World"]))
 
-    @app.handler("authenticate")
-    @anonymous
+    @app.handler("authenticate", public=True)
     async def _authenticate(request: Request) -> None:
         assert request.app is not None
         user = request.app.find_user(cast(str, cast(list, request.params)[0]))
@@ -93,8 +91,7 @@ async def testNamespace():
     out = OutTest()
     session = Session(out)
 
-    @app.namespace("test")
-    @anonymous
+    @app.namespace("test", public=True)
     async def _ns(request: Request) -> str:
         ns, method = request.method.split(".")
         return f"ns: {ns} method:{method}"
@@ -104,20 +101,34 @@ async def testNamespace():
 
 
 @pytest.mark.asyncio
+async def testFunction():
+    app = App()
+    app.add_user(User("alice"))
+    out = OutTest()
+    session = Session(out)
+
+    @app.function("hello", public=True)
+    async def _function(name: str) -> str:
+        return f"Hello {name}"
+
+    resp = await app._handle(session, dict(method="hello", params=["World"]))
+    assert resp == "Hello World"
+
+
+@pytest.mark.asyncio
 async def testAnonymous():
     out = OutTest()
     session = Session(out)
     tests = list()  # I need a pointer, not a value
 
-    @anonymous
-    async def _ano(r: Request):
+    async def _ano(r: Request) -> None:
         tests.append(1)
 
     app = App()
     request = Request.from_json(app, session, dict(method="whatever"))
     assert not request._anonymous
 
-    await _ano(request)
+    await _anonymous(_ano)(request)
     assert request._anonymous
 
     assert len(tests)

@@ -2,7 +2,7 @@ import asyncio
 import jwt
 import pytest
 
-from ..rpc.app import App, Session, User, anonymous
+from ..rpc.app import App, Session, User
 from ..rpc.app_test import OutTest
 from .club import Club, all
 
@@ -13,7 +13,7 @@ async def testClub():
     club = Club(app)
     club.register_room("harry", "potter")
 
-    app.handler("authenticate")(anonymous(club.authenticate))
+    app.handler("authenticate", public=True)(club.authenticate)
     app.namespace("all")(all)
 
     outs = dict[str, OutTest]()

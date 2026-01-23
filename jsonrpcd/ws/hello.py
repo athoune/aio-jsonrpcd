@@ -1,19 +1,18 @@
+from typing import cast
 from aiohttp import web
 
-from ..rpc.app import App as WsApp
-from ..rpc.app import Request, anonymous
+from ..rpc.app import App, Request
 from .web import JsonRpcWebHandler
 
-ws_app = WsApp()
+app = App()
 
 
-@ws_app.handler("hello")
-@anonymous
+@app.handler("hello", public=True)
 async def hello(request: Request) -> str:
-    return f"Hello {request.params[0]}"
+    return f"Hello {cast(list[str], request.params)[0]}"
 
 
-rpc_app = JsonRpcWebHandler(ws_app)
+rpc_app = JsonRpcWebHandler(app)
 
 routes = web.RouteTableDef()
 
