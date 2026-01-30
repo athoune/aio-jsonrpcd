@@ -26,6 +26,7 @@ async def index(request):
 
 
 app.router.add_static("/js", "./www-data/js")
+app.router.add_static("/css", "./www-data/css")
 app.router.add_get("/", index)
 
 if __name__ == "__main__":
