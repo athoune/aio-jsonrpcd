@@ -25,9 +25,8 @@ async def index(request):
     return web.Response(body=fp.read(), content_type="text/html")
 
 
-club.routes.static("/js", "./www-data/js")
-club.routes.get("/")(index)
-
+app.router.add_static("/js", "./www-data/js")
+app.router.add_get("/", index)
 
 if __name__ == "__main__":
     web.run_app(app)
