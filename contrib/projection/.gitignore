@@ -1,2 +1,5 @@
 node_modules
 www-data/js
+www-data/css
+src/sass/bulma
+build
