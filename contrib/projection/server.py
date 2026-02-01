@@ -12,7 +12,12 @@ logging.getLogger("asyncio").setLevel(logging.WARNING)
 app = web.Application()
 
 club = ClubWeb(app)
-club.register_room("secret_room", os.getenv("FAN_KEY", ""))
+key: str | None = os.getenv("FAN_KEY")
+if key is None:
+    print("Set the FAN_KEY ENV")
+    exit(-1)
+else:
+    club.register_room("secret_room", key)
 
 
 @club.rpc_app.handler("hello", public=True)
