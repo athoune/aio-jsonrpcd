@@ -32,7 +32,7 @@ async def ping() -> str:
 
 
 async def index(request):
-    fp = open("./templates/auth.html", "r")
+    fp = open("./templates/index.html", "r")
     return web.Response(body=fp.read(), content_type="text/html")
 
 
