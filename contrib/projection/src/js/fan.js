@@ -3,13 +3,12 @@ export class Session {
     this.id = 0;
     this.responses = new Map();
     this.on_event = on_event;
-    this.prehook = null;
+    this.on_connect = null;
   }
 
   async connect(url) {
     this.socket = new WebSocket(url);
     this.socket.addEventListener("message", (event) => {
-      console.log("message", event, this);
       this._handle_message(event.data);
     });
     return new Promise((resolve, reject) => {
@@ -21,6 +20,9 @@ export class Session {
         this.socket.addEventListener("open", (event) => {
           console.log("Connected");
           clearTimeout(timeout);
+          if (this.on_connect != null) {
+            this.on_connect();
+          }
           resolve(event);
         });
         this.socket.addEventListener("error", (event) => {
@@ -67,7 +69,6 @@ export class Session {
     );
     return new Promise((resolve, reject) => {
       try {
-        console.log("request", this);
         this.responses.set(id, {
           reject: reject,
           resolve: resolve,
