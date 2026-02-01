@@ -1,18 +1,50 @@
 import { Clappr } from "@clappr/player";
-import { connect } from "./fan";
+import { Session } from "./fan";
 
-async function popo() {
-  const fan = await connect(`ws://${window.location.host}/rpc`);
+const token_input = document.querySelector("#token");
+
+const token = window.localStorage.getItem("token");
+if (token != null) {
+  token_input.value = token;
+}
+
+document.querySelector("#do_auth").onclick = async () => {
+  console.log("click", token_input.value);
+  document.querySelector("#error").textContent = "";
   try {
-    let response = await fan.request("authenticate", {
-      room: "secret_room",
-      token:
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6ImFsaWNlIiwicm9vbSI6InNlY3JldF9yb29tIn0.fyxF81FOR5I2tPJwRHyq9B6ftRsZo2bJ2ZIYtL7RjTY",
-    });
-    console.log(response);
+    const msg = await authenticate(token_input.value);
+    console.log("authenticated", msg);
+    window.localStorage.setItem("token", token_input.value);
+    display_player();
   } catch (error) {
-    console.log(error);
+    document.querySelector("#error").textContent = error.error.message;
+  }
+};
+
+let fan;
+async function _connect() {
+  if (fan == null) {
+    // lazy connection
+    fan = new Session();
+    await fan.connect(`ws://${window.location.host}/rpc`);
   }
 }
 
-popo();
+async function authenticate(token) {
+  await _connect();
+  return fan.request("authenticate", {
+    room: "secret_room",
+    token: token,
+  });
+}
+
+function display_player() {
+  document.querySelector("#player").style.display = "default";
+  document.querySelector("#auth").style.display = "none";
+  var player = new Clappr.Player({
+    source:
+      "https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4",
+    parentId: "#player",
+  });
+  console.log("player", player);
+}
