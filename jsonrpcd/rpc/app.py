@@ -89,10 +89,12 @@ class Session(Store):
         await self._out(message)
 
     def close(self):
-        assert self.user is not None
-        self.user.close_session(self)
         self.authenticated = False
-        logger.info(f"session closed: {self.user.login}")
+        if self.user is not None:
+            self.user.close_session(self)
+            logger.info(f"session closed: {self.user.login}")
+        else:
+            logger.info("anonymous session closed")
 
     async def unicast(self, message: dict[str, Any]):
         raise NotImplementedError()
