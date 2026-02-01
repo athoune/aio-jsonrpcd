@@ -1,5 +1,6 @@
-import { Clappr } from "@clappr/player";
 import { Session } from "./fan";
+//import { Clappr } from "@clappr/player";
+import Clappr from "clappr";
 
 const token_input = document.querySelector("#token");
 
@@ -23,24 +24,26 @@ async function connect(token) {
 
 let fan;
 document.querySelector("#do_auth").onclick = async () => {
-  console.log("click", token_input.value);
   document.querySelector("#error").textContent = "";
   try {
     fan = await connect(token_input.value);
     window.localStorage.setItem("token", token_input.value);
     display_player();
   } catch (error) {
+    console.log("do_auth:", error);
     document.querySelector("#error").textContent = error.message;
   }
 };
 
 function display_player() {
-  document.querySelector("#player").style.display = "default";
   document.querySelector("#auth").style.display = "none";
+  document.querySelector("#player").style.display = "block";
   var player = new Clappr.Player({
     source:
       "https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4",
     parentId: "#player",
+    width: "100%",
+    autoPlay: false,
   });
   console.log("player", player);
 }

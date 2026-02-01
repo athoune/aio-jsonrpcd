@@ -7,6 +7,11 @@
   resolved "https://registry.yarnpkg.com/@clappr/player/-/player-0.11.16.tgz#9b9d3ff794be503eb812f20e21dae494f0a6a7cc"
   integrity sha512-A6rVmOqJ93rBJ4KDc3bFe3HHdtazC3LKGcnsw+0w52wfa8IpsiU2XpeSSLY44tybEJ8gpPKtm7vJrMf4uFVSzA==
 
+"@clappr/plugins@^0.8.11":
+  version "0.8.11"
+  resolved "https://registry.yarnpkg.com/@clappr/plugins/-/plugins-0.8.11.tgz#db04eab05f790617c50a5987741fbce6fe439140"
+  integrity sha512-SZYU5mUbWdy22bo2Shhh/opI0ejhrK8xPbPb6Fnm70cimE+Eam9AjGQEeM8u39yhLYiTXaDlz5WlkergnWaLoQ==
+
 "@esbuild/aix-ppc64@0.27.2":
   version "0.27.2"
   resolved "https://registry.yarnpkg.com/@esbuild/aix-ppc64/-/aix-ppc64-0.27.2.tgz#521cbd968dcf362094034947f76fa1b18d2d403c"
@@ -237,6 +242,11 @@ chokidar@^4.0.0:
   integrity sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==
   dependencies:
     readdirp "^4.0.1"
+
+clappr@^0.3.13:
+  version "0.3.13"
+  resolved "https://registry.yarnpkg.com/clappr/-/clappr-0.3.13.tgz#e2eacc37cb85024b7f73c0e0fcb4de52d0f15d7f"
+  integrity sha512-cAtGhtSAYIavKqVQb/wX5pB9twb/W7gFUGBaGHy6dbpUqCtCmtH0Eu05rNSwtbaREWgSTUJyEMTgaNSZ/62KlQ==
 
 detect-libc@^2.0.3:
   version "2.1.2"

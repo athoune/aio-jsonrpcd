@@ -1,7 +1,9 @@
 {
   "dependencies": {
     "@clappr/player": "^0.11.16",
+    "@clappr/plugins": "^0.8.11",
     "bulma": "^1.0.4",
+    "clappr": "^0.3.13",
     "esbuild": "^0.27.2",
     "sass": "^1.97.3"
   },
