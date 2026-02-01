@@ -25,6 +25,12 @@ async def hello(request: Request) -> str:
     return f"Hello {cast(list[str], request.params)[0]}"
 
 
+@club.rpc_app.function("ping", public=True)
+async def ping() -> str:
+    logging.info("ping")
+    return "pong"
+
+
 async def index(request):
     fp = open("./templates/auth.html", "r")
     return web.Response(body=fp.read(), content_type="text/html")
