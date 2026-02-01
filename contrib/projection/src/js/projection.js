@@ -8,35 +8,31 @@ if (token != null) {
   token_input.value = token;
 }
 
+async function connect(token) {
+  const fan = new Session();
+  fan.on_connect = async () => {
+    await fan.request("authenticate", {
+      room: "secret_room",
+      token: token,
+    });
+    console.log("authenticated");
+  };
+  await fan.connect(`ws://${window.location.host}/rpc`);
+  return fan;
+}
+
+let fan;
 document.querySelector("#do_auth").onclick = async () => {
   console.log("click", token_input.value);
   document.querySelector("#error").textContent = "";
   try {
-    const msg = await authenticate(token_input.value);
-    console.log("authenticated", msg);
+    fan = await connect(token_input.value);
     window.localStorage.setItem("token", token_input.value);
     display_player();
   } catch (error) {
-    document.querySelector("#error").textContent = error.error.message;
+    document.querySelector("#error").textContent = error.message;
   }
 };
-
-let fan;
-async function _connect() {
-  if (fan == null) {
-    // lazy connection
-    fan = new Session();
-    await fan.connect(`ws://${window.location.host}/rpc`);
-  }
-}
-
-async function authenticate(token) {
-  await _connect();
-  return fan.request("authenticate", {
-    room: "secret_room",
-    token: token,
-  });
-}
 
 function display_player() {
   document.querySelector("#player").style.display = "default";
