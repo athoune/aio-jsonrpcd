@@ -4,9 +4,17 @@ export class Session {
     this.responses = new Map();
     this.on_event = on_event;
     this.on_connect = null;
+    this.login = null;
   }
 
   async connect(url) {
+    await this._connect(url);
+    if (this.on_connect != null) {
+      await this.on_connect();
+    }
+  }
+
+  async _connect(url) {
     this.socket = new WebSocket(url);
     this.socket.addEventListener("message", (event) => {
       this._handle_message(event.data);
@@ -20,9 +28,6 @@ export class Session {
         this.socket.addEventListener("open", (event) => {
           console.log("Connected");
           clearTimeout(timeout);
-          if (this.on_connect != null) {
-            this.on_connect();
-          }
           resolve(event);
         });
         this.socket.addEventListener("error", (event) => {
@@ -40,6 +45,7 @@ export class Session {
 
   _handle_message(raw_message) {
     const message = JSON.parse(raw_message);
+    console.log("message:", message);
     if (message.error != null) {
       this.responses.get(message.id).reject(message);
     } else if (message.result != null) {
@@ -54,28 +60,39 @@ export class Session {
     }
   }
 
-  async request(method, params = null) {
+  async request(method, params = null, event = false) {
     if (params == null) {
       params = {};
     }
-    const id = this.id++;
-    this.socket.send(
-      JSON.stringify({
+    let message;
+    let id = null;
+    if (event) {
+      message = {
+        jsonrpc: "2.0",
+        method: method,
+        params: params,
+      };
+    } else {
+      id = this.id++;
+      message = {
         jsonrpc: "2.0",
         id: id,
         method: method,
         params: params,
-      }),
-    );
-    return new Promise((resolve, reject) => {
-      try {
-        this.responses.set(id, {
-          reject: reject,
-          resolve: resolve,
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
+      };
+    }
+    this.socket.send(JSON.stringify(message));
+    if (!event) {
+      return new Promise((resolve, reject) => {
+        try {
+          this.responses.set(id, {
+            reject: reject,
+            resolve: resolve,
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
   }
 }

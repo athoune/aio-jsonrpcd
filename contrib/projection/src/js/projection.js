@@ -12,11 +12,12 @@ if (token != null) {
 async function connect(token) {
   const fan = new Session();
   fan.on_connect = async () => {
-    await fan.request("authenticate", {
+    const result = await fan.request("authenticate", {
       room: "secret_room",
       token: token,
     });
-    console.log("authenticated");
+    fan.login = result.result;
+    console.log("authenticated", fan.login);
   };
   await fan.connect(`ws://${window.location.host}/rpc`);
   return fan;
@@ -27,6 +28,7 @@ document.querySelector("#do_auth").onclick = async () => {
   document.querySelector("#error").textContent = "";
   try {
     fan = await connect(token_input.value);
+    console.log("Hello", fan.login);
     window.localStorage.setItem("token", token_input.value);
     display_player();
   } catch (error) {
