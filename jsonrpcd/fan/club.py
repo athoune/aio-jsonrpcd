@@ -21,7 +21,7 @@ class Club:
         self._rooms[name] = room
         self._secrets[name] = secret
 
-    async def authenticate(self, request: Request):
+    async def authenticate(self, request: Request) -> str:
         params = cast(dict[str, str], request.params)
         room_name = params["room"]
 
@@ -36,6 +36,7 @@ class Club:
         request.session.authenticate()
         logger.info(f"authenticate: {user.login}")
         logger.info(f"room '{room_name}' has {len(room)} users.")
+        return meta["login"]
 
 
 def close_session(session: Session):
