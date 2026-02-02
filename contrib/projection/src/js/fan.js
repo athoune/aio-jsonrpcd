@@ -42,7 +42,7 @@ export class Session {
     const message = JSON.parse(raw_message);
     if (message.error != null) {
       this.responses.get(message.id).reject(message);
-    } else if (message.response != null) {
+    } else if (message.result != null) {
       this.responses.get(message.id).resolve(message);
       return;
     } else if (message.method != null) {
