@@ -47,52 +47,68 @@ export class Session {
     const message = JSON.parse(raw_message);
     console.log("message:", message);
     if (message.error != null) {
-      this.responses.get(message.id).reject(message);
+      if (message.id != null) {
+        this.responses.get(message.id).reject(message);
+      } else {
+        // it's an anonymous event error. Lets log it
+        console.log(message);
+      }
     } else if (message.result != null) {
       this.responses.get(message.id).resolve(message);
       return;
     } else if (message.method != null) {
       if (message.id == null) {
-        this.on_event(message);
+        if (this.on_event == null) {
+          console.log("Event received:", message);
+        } else {
+          const handler = this.on_event[message.method];
+          if (handler === undefined) {
+            console.log("No event handler for ", message);
+          } else {
+            handler(message);
+          }
+        }
       } else {
         // a call from the server
       }
     }
   }
 
-  async request(method, params = null, event = false) {
+  event(method, params = null) {
     if (params == null) {
       params = {};
     }
-    let message;
-    let id = null;
-    if (event) {
-      message = {
+    this.socket.send(
+      JSON.stringify({
         jsonrpc: "2.0",
         method: method,
         params: params,
-      };
-    } else {
-      id = this.id++;
-      message = {
+      }),
+    );
+  }
+
+  async request(method, params = null) {
+    if (params == null) {
+      params = {};
+    }
+    const id = this.id++;
+    this.socket.send(
+      JSON.stringify({
         jsonrpc: "2.0",
         id: id,
         method: method,
         params: params,
-      };
-    }
-    this.socket.send(JSON.stringify(message));
-    if (!event) {
-      return new Promise((resolve, reject) => {
-        try {
-          this.responses.set(id, {
-            reject: reject,
-            resolve: resolve,
-          });
-        } catch (error) {
-          reject(error);
-        }
-      });
-    }
+      }),
+    );
+    return new Promise((resolve, reject) => {
+      try {
+        this.responses.set(id, {
+          reject: reject,
+          resolve: resolve,
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 }

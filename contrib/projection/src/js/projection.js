@@ -46,6 +46,11 @@ function display_player() {
     parentId: "#player",
     width: "100%",
     autoPlay: false,
+    events: {
+      onReady: () => {
+        fan.event("all.onReady", [fan.login]);
+      },
+    },
   });
   console.log("player", player);
 }
