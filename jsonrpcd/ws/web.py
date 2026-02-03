@@ -97,14 +97,11 @@ class JsonRpcWebHandler:
 
     _app: App
 
-    def __init__(
-        self, app: App, init: None | Callable = None, on_close: None | Callable = None
-    ):
+    def __init__(self, app: App, init: None | Callable = None):
         """Init async function is called in the websocket connection step.
         It is used to add information to the session."""
         self._app: App = app
         self._init = init
-        self._on_close = on_close
 
     async def __call__(self, request: web.Request) -> web.Response:
         ws = web.WebSocketResponse()
@@ -122,13 +119,17 @@ class JsonRpcWebHandler:
 
         _tube = AutoTube()
 
-        async for message in websocketJsonRpcIterator(ws):
-            if "method" in message:
-                _tube.put(jsonrpc_session(message))
-            elif "result" in message:
-                pass  # FIXME
-            else:
-                raise Exception(f"strange message : {message}")
-        await ws.close()
-        if self._on_close is not None:
-            self._on_close(session)
+        try:
+            async for message in websocketJsonRpcIterator(ws):
+                if "method" in message:
+                    _tube.put(jsonrpc_session(message))
+                elif "result" in message:
+                    pass  # FIXME
+                else:
+                    raise Exception(f"strange message : {message}")
+        except Exception as e:
+            logger.error(e)
+        else:
+            await ws.close()
+            if self._app.on_close is not None:
+                await self._app.on_close(session)

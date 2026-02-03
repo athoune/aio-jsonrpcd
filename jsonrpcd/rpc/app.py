@@ -188,6 +188,7 @@ class App(Store):
         super().__init__()
         self._handlers = Dispatcher[Callable[["Request"], Awaitable[Any]]]()
         self._users = dict()
+        self.on_close: None | Callable[[Session], Awaitable[None]]
 
     def add_user(self, user: User):
         self._users[user.login] = user
