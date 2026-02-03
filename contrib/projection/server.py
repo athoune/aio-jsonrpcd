@@ -6,6 +6,7 @@ from typing import cast
 
 from jsonrpcd.rpc.app import Request
 from jsonrpcd.fan.web import ClubWeb
+from jsonrpcd.fan.club import all
 
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 
@@ -29,6 +30,9 @@ async def hello(request: Request) -> str:
 async def ping() -> str:
     logging.info("ping")
     return "pong"
+
+
+club.rpc_app.namespace("all")(all)
 
 
 async def index(request):
