@@ -2,11 +2,8 @@
 import logging
 import os
 from aiohttp import web
-from typing import cast
 
-from jsonrpcd.rpc.app import Request
 from jsonrpcd.fan.web import ClubWeb
-from jsonrpcd.fan.club import all
 
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 
@@ -19,20 +16,6 @@ if key is None:
     exit(-1)
 else:
     club.register_room("secret_room", key)
-
-
-@club.rpc_app.handler("hello", public=True)
-async def hello(request: Request) -> str:
-    return f"Hello {cast(list[str], request.params)[0]}"
-
-
-@club.rpc_app.function("ping", public=True)
-async def ping() -> str:
-    logging.info("ping")
-    return "pong"
-
-
-club.rpc_app.namespace("all")(all)
 
 
 async def index(request):
