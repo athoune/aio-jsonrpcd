@@ -3,15 +3,36 @@ import logging
 
 import jwt
 
-from ..rpc.app import App, Request, Room, User, Session
+from ..rpc.app import App, Request, Room, User, Session, Message
 
 
 logger = logging.getLogger(__name__)
 
 
+async def hello(request: Request) -> str:
+    return f"Hello {cast(list[str], request.params)[0]}"
+
+
+async def ping() -> str:
+    logging.info("ping")
+    return "pong"
+
+
+async def all(request: Request):
+    # Broadcast handler
+    assert request.user is not None
+    await request.session.room.broadcast(request.as_dict(), but=request.user.login)
+
+
 class Club:
     def __init__(self, app: App):
         self._app = app
+        self._app.handler("hello", public=True)(hello)
+        self._app.function("ping", public=True)(ping)
+        self._app.namespace("all")(all)
+        self._app.handler("authenticate", public=True)(self.authenticate)
+        self._app.on_close = close_session
+
         self._rooms = dict[str, Room]()
         self._secrets = dict[str, str]()
 
@@ -43,9 +64,3 @@ class Club:
 def close_session(session: Session):
     # Callback for jsonrpcd.ws.web.JsonRpcWebHandler
     session.close()
-
-
-async def all(request: Request):
-    # Broadcast handler
-    assert request.user is not None
-    await request.session.room.broadcast(request.as_dict(), but=request.user.login)
