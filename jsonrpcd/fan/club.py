@@ -54,7 +54,7 @@ class Club:
         user["meta"] = meta
         room.adduser(user, request.session)
         request.session.user = user
-        request.session.authenticate()
+        request.session.do_authenticate()
         logger.info(f"authenticate: {user.login}")
         logger.info(f"room '{room_name}' has {len(room)} users.")
         assert request.room is not None

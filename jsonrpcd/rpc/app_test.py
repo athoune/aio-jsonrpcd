@@ -76,7 +76,7 @@ async def testApp():
         assert request.app is not None
         user = request.app.find_user(cast(str, cast(list, request.params)[0]))
         # use token to authenticate
-        request.session.authenticate()
+        request.session.do_authenticate()
         session.user = user
 
     await app._handle(

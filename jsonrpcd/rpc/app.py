@@ -82,7 +82,8 @@ class Session(Store):
         assert self._room is not None
         return self._room
 
-    def authenticate(self):
+    def do_authenticate(self):
+        "The session is now authenticated."
         self.authenticated = True
 
     async def send_message(self, message: Message):
