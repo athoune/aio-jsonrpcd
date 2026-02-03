@@ -18,6 +18,9 @@ class Bounced(Exception):
     pass
 
 
+Message = dict[str, Any]
+
+
 class Store(MutableMapping[str, Any]):
     def __init__(self) -> None:
         super().__init__()
@@ -82,7 +85,7 @@ class Session(Store):
     def authenticate(self):
         self.authenticated = True
 
-    async def send_message(self, message: dict[str, Any]):
+    async def send_message(self, message: Message):
         """
         Write a message to the wire, something like a websocket.
         Used when sending events to the client."""
@@ -96,7 +99,7 @@ class Session(Store):
         else:
             logger.info("anonymous session closed")
 
-    async def unicast(self, message: dict[str, Any]):
+    async def unicast(self, message: Message):
         raise NotImplementedError()
 
 
@@ -127,7 +130,7 @@ class User(Store):
             del self._room.users[self.login]
             logger.info(f"User {self.login} leaves the room")
 
-    async def unicast(self, message: dict[str, Any]):
+    async def unicast(self, message: Message):
         for session in self.sessions:
             # FIXME handle function, not just event
             await session.unicast(message)
@@ -158,7 +161,7 @@ class Room(Store):
     def app(self):
         return self._app
 
-    async def broadcast(self, message: dict[str, Any], but: str | None = None):
+    async def broadcast(self, message: Message, but: str | None = None):
         assert message.get("id") is None  # it's an event
         users = set[str]()
         for user in self._users.values():
