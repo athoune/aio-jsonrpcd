@@ -61,6 +61,11 @@ class Club:
         return dict(me=meta["login"], users=list(request.room.users.keys()))
 
 
-def close_session(session: Session):
+async def close_session(session: Session):
     # Callback for jsonrpcd.ws.web.JsonRpcWebHandler
+    assert session.user is not None
+    await session.room.broadcast(
+        dict(jsnrpc="2.0", params=dict(user=session.user.login), method="disconnected"),
+        but=session.user.login,
+    )
     session.close()
