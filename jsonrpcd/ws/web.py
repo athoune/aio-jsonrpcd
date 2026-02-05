@@ -1,5 +1,5 @@
-from typing import Any, AsyncGenerator, Callable, cast
 import logging
+from typing import Any, AsyncGenerator, Callable, cast
 
 import aiohttp
 from aiohttp import web
@@ -7,6 +7,7 @@ from aiohttp.web import WebSocketResponse
 
 from ..rpc.app import App, Session
 from ..rpc.json_rpc import JsonRpcRequestException, checkup
+from ..rpc.loop import Loop, Message
 from ..rpc.tube import AutoTube
 
 logger = logging.getLogger(__name__)
@@ -14,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 async def websocketJsonRpcIterator(
     ws: web.WebSocketResponse,
-) -> AsyncGenerator[dict[str, Any], None]:
+) -> AsyncGenerator[Message, None]:
     "Yield message as dict, don't bother with websockets or JSON details."
     try:
         async for msg in ws:
             if msg.type == aiohttp.WSMsgType.TEXT:
                 try:
-                    message: dict = msg.json()
+                    message: Message = msg.json()
                 except Exception as e:
                     response = dict(
                         jsonrpc="2.0",
@@ -83,7 +84,7 @@ class JsonRpcSession:
         self.session = session
         self.ws = ws
 
-    async def __call__(self, message: dict[str, Any]):
+    async def __call__(self, message: Message):
         """Execute a request.
         The execution is detached, and return nothing.
         The call receive a Request and answer with a Response, through the websocket."""
@@ -119,14 +120,9 @@ class JsonRpcWebHandler:
 
         _tube = AutoTube()
 
+        loop = Loop(jsonrpc_session, ws.send_json)
         try:
-            async for message in websocketJsonRpcIterator(ws):
-                if "method" in message:
-                    _tube.put(jsonrpc_session(message))
-                elif "result" in message:
-                    pass  # FIXME
-                else:
-                    raise Exception(f"strange message : {message}")
+            await loop.loop(websocketJsonRpcIterator(ws))
         except Exception as e:
             logger.error(e)
         else:
