@@ -29,7 +29,7 @@ class Tube:
 
 class AutoTube:
     def __init__(self) -> None:
-        self._queries = set()
+        self._queries: set[Future] = set()
 
     def __len__(self) -> int:
         return len(self._queries)
